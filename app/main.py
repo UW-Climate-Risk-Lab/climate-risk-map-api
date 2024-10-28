@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from mangum import Mangum
 
-from routers import data
+import app.v1.api as v1
 
 app = FastAPI(
     title="Climate Risk Data API",
@@ -9,7 +9,7 @@ app = FastAPI(
     version="0.1.0"
 )
 
-app.include_router(data.data_router)
+app.include_router(v1.router, prefix="/api/v1")
 
 # AWS Lambda handler
 handler = Mangum(app)

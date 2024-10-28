@@ -107,6 +107,20 @@ files = [
 ]
 
 [[package]]
+name = "isort"
+version = "5.13.2"
+description = "A Python utility / library to sort Python imports."
+optional = false
+python-versions = ">=3.8.0"
+files = [
+    {file = "isort-5.13.2-py3-none-any.whl", hash = "sha256:8ca5e72a8d85860d5a3fa69b8745237f2939afe12dbf656afbcb47fe72d947a6"},
+    {file = "isort-5.13.2.tar.gz", hash = "sha256:48fdfcb9face5d58a4f6dde2e72a1fb8dcaf8ab26f95ab49fab84c2ddefb0109"},
+]
+
+[package.extras]
+colors = ["colorama (>=0.4.6)"]
+
+[[package]]
 name = "mangum"
 version = "0.19.0"
 description = "AWS Lambda support for ASGI applications"
@@ -408,4 +422,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "6200bae4acac03ed3e09403c7230b074c02426a4a95a0f1793603b4e1bffabf1"
+content-hash = "1c10c13c96afa3a76e0fa0c38044a025102c4b0459f257df4bf734b819c605d0"
