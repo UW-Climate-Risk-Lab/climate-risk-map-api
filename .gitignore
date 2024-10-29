@@ -163,3 +163,5 @@ cython_debug/
 
 #AWS SAM Build
 .aws-sam/
+
+.vscode

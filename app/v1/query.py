@@ -8,8 +8,7 @@ from psycopg2 import sql
 from typing import List, Dict, Tuple, Optional, Any
 from geojson_pydantic import FeatureCollection
 
-import config
-
+import app.v1.config as config
 
 class CRLQuery:
     """Creates query for PG OSM Flex Database
@@ -333,7 +332,7 @@ class CRLQuery:
 
         admin_conditions = {
             "condition": condition,
-            "level": self.osm_table_places_admin_levels[condition],
+            "level": config.OSM_TABLE_PLACES_ADMIN_LEVELS[condition],
             "alias": condition,
         }
 

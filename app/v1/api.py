@@ -7,8 +7,8 @@ from geojson_pydantic import FeatureCollection
 from pydantic import BaseModel, ValidationError, model_validator
 from psycopg2 import sql
 
-import config
-import query
+import app.v1.config as config
+import app.v1.query as query
 
 router = APIRouter()
 
