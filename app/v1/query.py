@@ -6,54 +6,30 @@ This module houses code relating to building SQL queries
 from psycopg2 import sql
 
 from typing import List, Dict, Tuple, Optional, Any
-from geojson_pydantic import FeatureCollection
 
 import app.v1.config as config
 
-class CRLQuery:
+from app.v1.schemas import GetDataInputParameters
+
+
+class GetDataQueryBuilder:
     """Creates query for PG OSM Flex Database
     
     The query will return data in a GeoJSON format
     """
 
-    def __init__(
-        self,
-        category: str,
-        osm_types: List[str],
-        osm_subtypes: Optional[List[str]] = None,
-        bbox: Optional[FeatureCollection] = None,
-        county: bool = False,
-        city: bool = False,
-        epsg_code: int = 4326,
-        geom_type: Optional[str] = None,
-        climate_variable: Optional[str] = None,
-        climate_ssp: Optional[int] = None,
-        climate_month: Optional[List[int]] = None,
-        climate_decade: Optional[List[int]] = None,
-        climate_metadata: bool = False,
-    ) -> None:
+    def __init__(self, input_params: GetDataInputParameters) -> None:
 
-        self.primary_table = category
-        self.osm_types = osm_types
-        self.osm_subtypes = osm_subtypes
-        self.bbox = bbox
-        self.county = county
-        self.city = city
-        self.epsg_code = epsg_code
-        self.geom_type = geom_type
-        self.climate_variable = climate_variable
-        self.climate_ssp = climate_ssp
-        self.climate_month = climate_month
-        self.climate_decade = climate_decade
-        self.climate_metadata = climate_metadata
+        self.input_params = input_params
 
-        self.params = list()
-        self.select_statement = None
-        self.from_statement = None
-        self.join_statement = None
-        self.where_clause = None
+        # Primary table will be a materialized view of the given category
+        self.primary_table = self.input_params.category if self.input_params.category in config.OSM_AVAILABLE_CATEGORIES.keys() else None
+        if self.primary_table is None:
+            raise ValueError(f"The category {self.input_params.category} is not currently available!")
+        
 
-        self.query = None
+        if not config.OSM_AVAILABLE_CATEGORIES[self.primary_table]["has_subtypes"]:
+            self.osm_subtypes = None
 
     def _create_select_statement(self) -> Tuple[sql.SQL, List[Any]]:
         """Bulids a dynamic SQL SELECT statement for the get_osm_data method
@@ -173,6 +149,7 @@ class CRLQuery:
         select_statement = sql.SQL("SELECT {columns}").format(
             columns=sql.SQL(", ").join(select_fields)
         )
+        self.select_statement = select_statement
         return select_statement
 
     def _create_from_statement(self) -> sql.SQL:
@@ -266,6 +243,7 @@ class CRLQuery:
 
             join_statement = sql.SQL(" ").join([join_statement, climate_join])
 
+        self.join_statement = join_statement
         return join_statement
 
     def _create_where_clause(self) -> Tuple[sql.SQL, List[Any]]:
@@ -326,6 +304,7 @@ class CRLQuery:
 
             where_clause = sql.SQL(" ").join([where_clause, bbox_filter])
 
+        self.where_clause = where_clause
         return where_clause
 
     def _create_admin_table_conditions(self, condition: str) -> Dict:
@@ -367,6 +346,8 @@ class CRLQuery:
                 sql.SQL(") AS geojson;"),
             ]
         )
+
+        self.params = tuple(self.params)
 
         return self.query
 

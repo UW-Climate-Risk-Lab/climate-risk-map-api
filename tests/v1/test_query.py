@@ -1,8 +1,10 @@
-import pytest
-from psycopg2.sql import SQL, Composed, Identifier
 from unittest.mock import MagicMock, patch
-from app.v1 import query, api
+
+import pytest
 from geojson_pydantic import FeatureCollection
+from psycopg2.sql import SQL, Composed, Identifier
+
+from app.v1 import api, query
 
 TEST_BBOX = {
     "type": "FeatureCollection",
