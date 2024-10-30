@@ -30,14 +30,14 @@ def get_database_conn() -> connection:
                 password=os.environ["PG_PASSWORD"],
                 host=os.environ["PG_HOST"],
             )
-            break
+            return conn
         except Exception as e:
-            logger.warning("Could not connect to database, retrying...")
+            logger.warning(f"Could not connect to database {e}, retrying...")
             tries += 1
-    if tries < 3:
+    if tries >= 3:
         logger.error("Could not connect to database after retries.")
-        raise ConnectionRefusedError()
-    return conn
+        raise ConnectionRefusedError("Postgres database could not be accessed")
+    
 
 def execute_query(query: sql.SQL, params: Tuple[str] = None) -> Any:
     """Executes provided PostgreSQL query 

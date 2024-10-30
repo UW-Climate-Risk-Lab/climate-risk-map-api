@@ -4,7 +4,7 @@ import pytest
 from geojson_pydantic import FeatureCollection
 from psycopg2.sql import SQL, Composed, Identifier
 
-from app.v1 import api, query
+from app.v1 import query, schemas
 
 TEST_BBOX = {
     "type": "FeatureCollection",
@@ -64,7 +64,7 @@ TEST_BBOX = {
     [
         # Select with climate arguments
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],

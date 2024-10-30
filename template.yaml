@@ -6,7 +6,7 @@ Resources:
     Properties:
       CodeUri: .
       Handler: app.main.handler
-      Runtime: python3.9
+      Runtime: python3.12
       MemorySize: 128
       Timeout: 30
       Environment:

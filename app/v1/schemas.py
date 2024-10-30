@@ -1,8 +1,14 @@
 from geojson_pydantic import FeatureCollection
 from pydantic import BaseModel, model_validator
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import app.v1.config as config
+
+class BoundingBox(BaseModel):
+    xmax: float
+    xmin: float
+    ymax: float
+    ymin: float
 
 class GetGeoJsonOutput(BaseModel):
     """Checks output is a GeoJSON"""
@@ -74,3 +80,10 @@ class GetDataInputParameters(BaseModel):
     def check_available_categories(self):
         if self.category not in config.OSM_AVAILABLE_CATEGORIES.keys():
             raise ValueError(f"{self.category} is not available")
+        return self
+        
+    @model_validator(mode="after")
+    def set_osm_subtypes(self):
+        if not config.OSM_AVAILABLE_CATEGORIES[self.category]["has_subtypes"]:
+            self.osm_subtypes = None
+        return self

@@ -23,13 +23,7 @@ class GetDataQueryBuilder:
         self.input_params = input_params
 
         # Primary table will be a materialized view of the given category
-        self.primary_table = self.input_params.category if self.input_params.category in config.OSM_AVAILABLE_CATEGORIES.keys() else None
-        if self.primary_table is None:
-            raise ValueError(f"The category {self.input_params.category} is not currently available!")
-        
-
-        if not config.OSM_AVAILABLE_CATEGORIES[self.primary_table]["has_subtypes"]:
-            self.osm_subtypes = None
+        self.primary_table = self.input_params.category
 
     def _create_select_statement(self) -> Tuple[sql.SQL, List[Any]]:
         """Bulids a dynamic SQL SELECT statement for the get_osm_data method
@@ -75,10 +69,10 @@ class GetDataQueryBuilder:
                 column=sql.Identifier(config.OSM_COLUMN_GEOM),
             ),
         ]
-        self.params.extend([self.epsg_code] * 4)
+        self.params.extend([self.input_params.epsg_code] * 4)
 
         # Add extra where clause for subtypes if they are specified
-        if self.osm_subtypes:
+        if self.input_params.osm_subtypes:
             select_fields.append(
                 sql.Identifier(
                     config.OSM_SCHEMA_NAME, self.primary_table, "osm_subtype"
@@ -86,7 +80,7 @@ class GetDataQueryBuilder:
             )
 
         # County and City tables are aliased in the _create_join_method()
-        if self.county:
+        if self.input_params.county:
             conditions = self._create_admin_table_conditions("county")
             county_field = sql.SQL("{admin_table_alias}.name AS county_name").format(
                 schema=sql.Identifier(config.OSM_SCHEMA_NAME),
@@ -94,7 +88,7 @@ class GetDataQueryBuilder:
             )
             select_fields.append(county_field)
 
-        if self.city:
+        if self.input_params.city:
             conditions = self._create_admin_table_conditions("city")
             city_field = sql.SQL("{admin_table_alias}.name AS city_name").format(
                 schema=sql.Identifier(config.OSM_SCHEMA_NAME),
@@ -103,10 +97,10 @@ class GetDataQueryBuilder:
             select_fields.append(city_field)
 
         if (
-            self.climate_variable
-            and self.climate_ssp
-            and self.climate_month
-            and self.climate_decade
+            self.input_params.climate_variable
+            and self.input_params.climate_ssp
+            and self.input_params.climate_month
+            and self.input_params.climate_decade
         ):
             select_fields.append(
                 sql.SQL("{climate_table_alias}.ssp").format(
@@ -138,7 +132,7 @@ class GetDataQueryBuilder:
                     climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
                 )
             )
-            if self.climate_metadata:
+            if self.input_params.climate_metadata:
                 select_fields.append(
                     sql.SQL("{climate_table_alias}.climate_metadata").format(
                         climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
@@ -173,9 +167,9 @@ class GetDataQueryBuilder:
 
         # Dynamically add government administrative boundaries as necessary
         admin_conditions = []
-        if self.county:
+        if self.input_params.county:
             admin_conditions.append(self._create_admin_table_conditions("county"))
-        if self.city:
+        if self.input_params.city:
             admin_conditions.append(self._create_admin_table_conditions("city"))
 
         # Iterate over the admin conditions to build the joins dynamically
@@ -195,10 +189,10 @@ class GetDataQueryBuilder:
             join_statement = sql.SQL(" ").join([join_statement, admin_join])
 
         if (
-            self.climate_variable
-            and self.climate_ssp
-            and self.climate_month
-            and self.climate_decade
+            self.input_params.climate_variable
+            and self.input_params.climate_ssp
+            and self.input_params.climate_month
+            and self.input_params.climate_decade
         ):
             climate_join = sql.Composed(
                 [
@@ -235,10 +229,10 @@ class GetDataQueryBuilder:
                 ]
             )
             self.params += [
-                self.climate_ssp,
-                self.climate_variable,
-                tuple(set(self.climate_decade)),
-                tuple(set(self.climate_month)),
+                self.input_params.climate_ssp,
+                self.input_params.climate_variable,
+                tuple(set(self.input_params.climate_decade)),
+                tuple(set(self.input_params.climate_month)),
             ]
 
             join_statement = sql.SQL(" ").join([join_statement, climate_join])
@@ -254,9 +248,9 @@ class GetDataQueryBuilder:
             primary_table=sql.Identifier(self.primary_table),
             column=sql.Identifier("osm_type"),
         )
-        self.params.append(tuple(self.osm_types))
+        self.params.append(tuple(self.input_params.osm_types))
 
-        if self.osm_subtypes:
+        if self.input_params.osm_subtypes:
             subtype_clause = sql.SQL(
                 "AND {schema}.{primary_table}.{column} IN %s"
             ).format(
@@ -264,25 +258,25 @@ class GetDataQueryBuilder:
                 primary_table=sql.Identifier(self.primary_table),
                 column=sql.Identifier("osm_subtype"),
             )
-            self.params.append(tuple(self.osm_subtypes))
+            self.params.append(tuple(self.input_params.osm_subtypes))
             where_clause = sql.SQL(" ").join([where_clause, subtype_clause])
 
-        if self.geom_type:
+        if self.input_params.geom_type:
             geom_type_clause = sql.SQL(
                 "AND {schema}.{primary_table}.geom_type = %s"
             ).format(
                 schema=sql.Identifier(config.OSM_SCHEMA_NAME),
                 primary_table=sql.Identifier(self.primary_table),
             )
-            self.params.append("ST_" + self.geom_type)
+            self.params.append("ST_" + self.input_params.geom_type)
             where_clause = sql.SQL(" ").join([where_clause, geom_type_clause])
 
         # If a bounding box GeoJSON is passed in, use as filter
-        if self.bbox:
+        if self.input_params.bbox:
             bbox_filter = sql.SQL("AND (")
             count = 0
             # Handles multiple bounding boxes drawn by user
-            for feature in self.bbox.features:
+            for feature in self.input_params.bbox.features:
                 if count == 0:
                     pass
                 else:
@@ -295,9 +289,9 @@ class GetDataQueryBuilder:
                     primary_table=sql.Identifier(self.primary_table),
                     geom_column=sql.Identifier(config.OSM_COLUMN_GEOM),
                 )
-                self.params.append(self.epsg_code)
+                self.params.append(self.input_params.epsg_code)
                 self.params.append(feature.geometry.wkt)
-                self.params.append(self.epsg_code)
+                self.params.append(self.input_params.epsg_code)
                 bbox_filter = sql.SQL(" ").join([bbox_filter, feature_filter])
                 count += 1
             bbox_filter = sql.SQL(" ").join([bbox_filter, sql.SQL(")")])

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from mangum import Mangum
 
-import app.v1.api as v1
+import v1.api as v1
 
 app = FastAPI(
     title="Climate Risk Data API",
