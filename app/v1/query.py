@@ -81,21 +81,20 @@ class GetDataQueryBuilder:
             )
 
         # County and City tables are aliased in the _create_join_method()
-        if self.input_params.county:
-            conditions = self._create_admin_table_conditions("county")
-            county_field = sql.SQL("{admin_table_alias}.name AS county_name").format(
-                schema=sql.Identifier(config.OSM_SCHEMA_NAME),
-                admin_table_alias=sql.Identifier(conditions["alias"]),
-            )
-            select_fields.append(county_field)
+        conditions = self._create_admin_table_conditions("county")
+        county_field = sql.SQL("{admin_table_alias}.name AS county").format(
+            schema=sql.Identifier(config.OSM_SCHEMA_NAME),
+            admin_table_alias=sql.Identifier(conditions["alias"]),
+        )
+        select_fields.append(county_field)
 
-        if self.input_params.city:
-            conditions = self._create_admin_table_conditions("city")
-            city_field = sql.SQL("{admin_table_alias}.name AS city_name").format(
-                schema=sql.Identifier(config.OSM_SCHEMA_NAME),
-                admin_table_alias=sql.Identifier(conditions["alias"]),
-            )
-            select_fields.append(city_field)
+
+        conditions = self._create_admin_table_conditions("city")
+        city_field = sql.SQL("{admin_table_alias}.name AS city").format(
+            schema=sql.Identifier(config.OSM_SCHEMA_NAME),
+            admin_table_alias=sql.Identifier(conditions["alias"]),
+        )
+        select_fields.append(city_field)
 
         if (
             self.input_params.climate_variable
@@ -174,10 +173,8 @@ class GetDataQueryBuilder:
 
         # Dynamically add government administrative boundaries as necessary
         admin_conditions = []
-        if self.input_params.county:
-            admin_conditions.append(self._create_admin_table_conditions("county"))
-        if self.input_params.city:
-            admin_conditions.append(self._create_admin_table_conditions("city"))
+        admin_conditions.append(self._create_admin_table_conditions("county"))
+        admin_conditions.append(self._create_admin_table_conditions("city"))
 
         # Iterate over the admin conditions to build the joins dynamically
         for admin in admin_conditions:

@@ -12,7 +12,7 @@ import app.v1.config as config
 from app.v1.query import GetDataQueryBuilder
 import time
 import app.v1.schemas as schemas
-import app.utils as utils
+import app.v1.utils as utils
 
 router = APIRouter()
 
@@ -35,8 +35,6 @@ def get_data(
     osm_type: str,
     osm_subtypes: List[str] | None = Query(None),
     bbox: List[str] | None = Query(None),
-    county: bool = False,
-    city: bool = False,
     epsg_code: int = 4326,
     geom_type: str | None = None,
     climate_variable: str | None = None,
@@ -78,8 +76,6 @@ def get_data(
             osm_types=osm_types,
             osm_subtypes=osm_subtypes,
             bbox=bbox,
-            county=county,
-            city=city,
             epsg_code=epsg_code,
             geom_type=geom_type,
             climate_variable=climate_variable,
@@ -107,18 +103,13 @@ def get_data(
         if result["features"] is None:
             result["features"] = list()
         else:
-            pass
+            start_time = time.time()
+            result = utils.clean_geojson_data(raw_geojson=result)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"Time taken to aggregate geojson data: {elapsed_time:.2f} seconds")
     except KeyError as e:
         logger.error("Get GeoJSON database response has no key 'features'")
-
-    if climate_variable:
-        start_time = time.time()
-        
-        result = utils.aggregate_geojson_data(raw_geojson=result)
-        
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Time taken to aggregate geojson data: {elapsed_time:.2f} seconds")
 
     # Serialize the response data to JSON
     response_json = json.dumps(result)

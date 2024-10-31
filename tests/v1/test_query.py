@@ -68,8 +68,6 @@ TEST_BBOX = {
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
-                county=True,
-                city=True,
                 epsg_code=4326,
                 climate_variable="burntFractionAll",
                 climate_decade=[2060, 2070],
@@ -138,11 +136,9 @@ TEST_BBOX = {
                             SQL(", "),
                             Identifier("osm", "infrastructure", "osm_subtype"),
                             SQL(", "),
-                            Composed(
-                                [Identifier("county"), SQL(".name AS county_name")]
-                            ),
+                            Composed([Identifier("county"), SQL(".name AS county")]),
                             SQL(", "),
-                            Composed([Identifier("city"), SQL(".name AS city_name")]),
+                            Composed([Identifier("city"), SQL(".name AS city")]),
                             SQL(", "),
                             Composed([Identifier("climate_data"), SQL(".ssp")]),
                             SQL(", "),
@@ -179,8 +175,6 @@ TEST_BBOX = {
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
-                county=True,
-                city=True,
                 epsg_code=4326,
                 climate_variable=None,
                 climate_decade=None,
@@ -252,11 +246,11 @@ TEST_BBOX = {
                             Composed(
                                 [
                                     Identifier("county"),
-                                    SQL(".name AS county_name"),
+                                    SQL(".name AS county"),
                                 ]
                             ),
                             SQL(", "),
-                            Composed([Identifier("city"), SQL(".name AS city_name")]),
+                            Composed([Identifier("city"), SQL(".name AS city")]),
                         ]
                     ),
                 ]
@@ -269,10 +263,11 @@ def test_create_select_statement(
     input_params, expected_select_statement, expected_params
 ):
 
-    query_builder = query.GetDataQueryBuilder(input_params=input_params
-    )
+    query_builder = query.GetDataQueryBuilder(input_params=input_params)
 
-    generated_select_statement, generated_params = query_builder._create_select_statement()
+    generated_select_statement, generated_params = (
+        query_builder._create_select_statement()
+    )
 
     assert generated_select_statement == expected_select_statement
     assert generated_params == expected_params
@@ -286,8 +281,6 @@ def test_create_select_statement(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
-                county=True,
-                city=True,
                 epsg_code=4326,
                 climate_variable="burntFractionAll",
                 climate_decade=[2060, 2070],
@@ -308,8 +301,7 @@ def test_create_select_statement(
 )
 def test_create_from_statement(input_params, expected_from_statement):
 
-    query_builder = query.GetDataQueryBuilder(input_params=input_params
-    )
+    query_builder = query.GetDataQueryBuilder(input_params=input_params)
 
     generated_from_statement = query_builder._create_from_statement()
 
@@ -325,8 +317,6 @@ def test_create_from_statement(input_params, expected_from_statement):
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
-                county=True,
-                city=True,
                 epsg_code=4326,
                 climate_variable="burntFractionAll",
                 climate_decade=[2060, 2070],
@@ -462,101 +452,12 @@ def test_create_from_statement(input_params, expected_from_statement):
             ),
             [6, 8, 126, "burntFractionAll", (2060, 2070), (8, 9)],
         ),
-        # Test case with no city and no count
-        (
-            schemas.GetDataInputParameters(
-                category="infrastructure",
-                osm_types=["power"],
-                osm_subtypes=["line"],
-                county=False,
-                city=False,
-                epsg_code=4326,
-                climate_variable="burntFractionAll",
-                climate_decade=[2060, 2070],
-                climate_month=[8, 9],
-                climate_ssp=126,
-                climate_metadata=True,
-            ),
-            Composed(
-                [
-                    Composed(
-                        [
-                            SQL("JOIN "),
-                            Identifier("osm"),
-                            SQL("."),
-                            Identifier("tags"),
-                            SQL(" ON "),
-                            Identifier("osm"),
-                            SQL("."),
-                            SQL("infrastructure"),
-                            SQL(".osm_id = "),
-                            Identifier("osm"),
-                            SQL("."),
-                            Identifier("tags"),
-                            SQL(".osm_id"),
-                        ]
-                    ),
-                    SQL(" "),
-                    Composed(
-                        [
-                            SQL("LEFT JOIN ("),
-                            SQL(
-                                "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value, v.metadata AS climate_metadata "
-                            ),
-                            Composed(
-                                [
-                                    SQL("FROM "),
-                                    Identifier("climate"),
-                                    SQL("."),
-                                    Identifier("scenariomip"),
-                                    SQL(" s "),
-                                ]
-                            ),
-                            Composed(
-                                [
-                                    SQL("LEFT JOIN "),
-                                    Identifier("climate"),
-                                    SQL("."),
-                                    Identifier("scenariomip_variables"),
-                                    SQL(" v "),
-                                ]
-                            ),
-                            SQL("ON s.variable_id = v.id "),
-                            SQL(
-                                "WHERE v.ssp = %s AND v.variable = %s AND s.decade IN %s AND s.month IN %s"
-                            ),
-                            Composed(
-                                [
-                                    SQL(") AS "),
-                                    Identifier("climate_data"),
-                                    SQL(" "),
-                                ]
-                            ),
-                            Composed(
-                                [
-                                    SQL("ON "),
-                                    Identifier("osm"),
-                                    SQL("."),
-                                    Identifier("infrastructure"),
-                                    SQL(".osm_id = "),
-                                    Identifier("climate_data"),
-                                    SQL(".osm_id"),
-                                ]
-                            ),
-                        ]
-                    ),
-                ]
-            ),
-            [126, "burntFractionAll", (2060, 2070), (8, 9)],
-        ),
         # Test case no climate
         (
             schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
-                county=False,
-                city=False,
                 epsg_code=4326,
                 climate_variable=None,
                 climate_decade=None,
@@ -566,31 +467,84 @@ def test_create_from_statement(input_params, expected_from_statement):
             ),
             Composed(
                 [
-                    SQL("JOIN "),
-                    Identifier("osm"),
-                    SQL("."),
-                    Identifier("tags"),
-                    SQL(" ON "),
-                    Identifier("osm"),
-                    SQL("."),
-                    SQL("infrastructure"),
-                    SQL(".osm_id = "),
-                    Identifier("osm"),
-                    SQL("."),
-                    Identifier("tags"),
-                    SQL(".osm_id"),
+                    Composed(
+                        [
+                            Composed(
+                                [
+                                    SQL("JOIN "),
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    Identifier("tags"),
+                                    SQL(" ON "),
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    SQL("infrastructure"),
+                                    SQL(".osm_id = "),
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    Identifier("tags"),
+                                    SQL(".osm_id"),
+                                ]
+                            ),
+                            SQL(" "),
+                            Composed(
+                                [
+                                    SQL("LEFT JOIN "),
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    Identifier("place_polygon"),
+                                    SQL(" "),
+                                    Identifier("county"),
+                                    SQL("ON ST_Intersects("),
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    Identifier("infrastructure"),
+                                    SQL("."),
+                                    Identifier("geom"),
+                                    SQL(", "),
+                                    Identifier("county"),
+                                    SQL("."),
+                                    Identifier("geom"),
+                                    SQL(") AND "),
+                                    Identifier("county"),
+                                    SQL(".admin_level = %s "),
+                                ]
+                            ),
+                        ]
+                    ),
+                    SQL(" "),
+                    Composed(
+                        [
+                            SQL("LEFT JOIN "),
+                            Identifier("osm"),
+                            SQL("."),
+                            Identifier("place_polygon"),
+                            SQL(" "),
+                            Identifier("city"),
+                            SQL("ON ST_Intersects("),
+                            Identifier("osm"),
+                            SQL("."),
+                            Identifier("infrastructure"),
+                            SQL("."),
+                            Identifier("geom"),
+                            SQL(", "),
+                            Identifier("city"),
+                            SQL("."),
+                            Identifier("geom"),
+                            SQL(") AND "),
+                            Identifier("city"),
+                            SQL(".admin_level = %s "),
+                        ]
+                    ),
                 ]
             ),
-            [],
+            [6, 8],
         ),
     ],
 )
-def test_create_join_statement(
-    input_params, expected_join_statement, expected_params
-):
+def test_create_join_statement(input_params, expected_join_statement, expected_params):
 
-    query_builder = query.GetDataQueryBuilder(input_params=input_params
-    )
+    query_builder = query.GetDataQueryBuilder(input_params=input_params)
     generated_join_statement, generated_params = query_builder._create_join_statement()
 
     assert generated_join_statement == expected_join_statement
@@ -613,7 +567,9 @@ def test_create_join_statement(
                 climate_month=[8, 9],
                 climate_ssp=126,
                 climate_metadata=True,
-                bbox=FeatureCollection(type=TEST_BBOX["type"], features=TEST_BBOX["features"]),
+                bbox=FeatureCollection(
+                    type=TEST_BBOX["type"], features=TEST_BBOX["features"]
+                ),
             ),
             Composed(
                 [
@@ -711,9 +667,7 @@ def test_create_join_statement(
         )
     ],
 )
-def test_create_where_clause(
-    input_params, expected_where_clause, expected_params
-):
+def test_create_where_clause(input_params, expected_where_clause, expected_params):
     query_builder = query.GetDataQueryBuilder(input_params=input_params)
     generated_where_clause, generated_params = query_builder._create_where_clause()
 
@@ -724,21 +678,21 @@ def test_create_where_clause(
 def test_create_limit():
     # Set the limit value
     input_params = schemas.GetDataInputParameters(
-                category="infrastructure",
-                osm_types=["power"],
-                osm_subtypes=["line"],
-                county=True,
-                city=True,
-                epsg_code=4326,
-                climate_variable="burntFractionAll",
-                climate_decade=[2060, 2070],
-                climate_month=[8, 9],
-                climate_ssp=126,
-                climate_metadata=True,
-                bbox=FeatureCollection(type=TEST_BBOX["type"], features=TEST_BBOX["features"]),
-                limit=10
-            )
-    query_builder =  query.GetDataQueryBuilder(input_params=input_params)
+        category="infrastructure",
+        osm_types=["power"],
+        osm_subtypes=["line"],
+        county=True,
+        city=True,
+        epsg_code=4326,
+        climate_variable="burntFractionAll",
+        climate_decade=[2060, 2070],
+        climate_month=[8, 9],
+        climate_ssp=126,
+        climate_metadata=True,
+        bbox=FeatureCollection(type=TEST_BBOX["type"], features=TEST_BBOX["features"]),
+        limit=10,
+    )
+    query_builder = query.GetDataQueryBuilder(input_params=input_params)
 
     limit_statement, params = query_builder._create_limit()
 

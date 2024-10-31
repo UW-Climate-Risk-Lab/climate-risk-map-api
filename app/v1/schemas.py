@@ -39,9 +39,7 @@ class GetDataInputParameters(BaseModel):
     category (str): OSM Category to get data from.
     osm_types (List[str]): OSM Type to filter on.
     osm_subtypes (List[str]): OSM Subtypes to filter on.
-    bbox (FeatureCollection): Bounding Box. GeoJSON Spec format. Used for filtering .
-    county (bool): If True, returns the county of the feature as a property.
-    city (bool): If True, returns the city of the feature as a property.
+    bbox (FeatureCollection): Bounding Box. GeoJSON Spec format. Used for filtering.
     epsg_code (int): Spatial reference ID, default is 4326 (Representing EPSG:4326).
     geom_type (str): If used, returns only features of the specified geom_type.
     climate_variable (str): Climate variable to filter on.
@@ -56,8 +54,6 @@ class GetDataInputParameters(BaseModel):
     osm_types: List[str]
     osm_subtypes: Optional[List[str]] = None
     bbox: Optional[FeatureCollection] = None
-    county: bool = False
-    city: bool = False
     epsg_code: int = 4326
     geom_type: Optional[str] = None
     climate_variable: Optional[str] = None

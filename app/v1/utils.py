@@ -29,7 +29,7 @@ def create_bbox(bboxes: List[schemas.BoundingBox]) -> FeatureCollection:
     return FeatureCollection(features=features, type="FeatureCollection")
 
 
-def aggregate_geojson_data(raw_geojson: Dict[str, Any]) -> Dict[str, Any]:
+def clean_geojson_data(raw_geojson: Dict[str, Any]) -> Dict[str, Any]:
     """Condense feature property fields to avoid duplicate features in return data
 
     We condense city and county since some features can span multiple (i.e long power transmission lines)
@@ -61,8 +61,9 @@ def aggregate_geojson_data(raw_geojson: Dict[str, Any]) -> Dict[str, Any]:
                     for k, v in properties.items()
                     if k
                     not in [
-                        "county_name",
-                        "city_name",
+                        "geometry_wkt",
+                        "county",
+                        "city",
                         "climate_variable",
                         "ssp",
                         "month",
@@ -95,8 +96,8 @@ def aggregate_geojson_data(raw_geojson: Dict[str, Any]) -> Dict[str, Any]:
             properties.get("climate_exposure")
         )
 
-        city = properties.get("city_name")
-        county = properties.get("county_name")
+        city = properties.get("city")
+        county = properties.get("county")
 
         if city not in aggregated_features[osm_id]["properties"]["city"]:
             aggregated_features[osm_id]["properties"]["city"].append(city)
