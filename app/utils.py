@@ -28,3 +28,4 @@ def create_bbox(bboxes: List[schemas.BoundingBox]) -> FeatureCollection:
     
     # Create and return the FeatureCollection
     return FeatureCollection(features=features, type="FeatureCollection")
+

@@ -1,3 +1,8 @@
+"""
+Module for interfacing and connecting to a Postgres instance
+
+"""
+
 import psycopg2 as pg
 from psycopg2.extensions import connection
 from psycopg2 import sql

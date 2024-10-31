@@ -28,7 +28,6 @@ class BoundingBox(BaseModel):
         return v
 
 
-
 class GetGeoJsonOutput(BaseModel):
     """Checks output is a GeoJSON"""
 
@@ -40,7 +39,7 @@ class GetDataInputParameters(BaseModel):
     category (str): OSM Category to get data from.
     osm_types (List[str]): OSM Type to filter on.
     osm_subtypes (List[str]): OSM Subtypes to filter on.
-    bbox (FeatureCollection): A Dict in the GeoJSON Feature Collection format. Used for filtering.
+    bbox (FeatureCollection): Bounding Box. GeoJSON Spec format. Used for filtering .
     county (bool): If True, returns the county of the feature as a property.
     city (bool): If True, returns the city of the feature as a property.
     epsg_code (int): Spatial reference ID, default is 4326 (Representing EPSG:4326).
