@@ -36,6 +36,7 @@ class GetDataQueryBuilder:
         these are more computationally expensive and for now not worth the implementation.
 
         """
+        params = list()
 
         # Initial list of fields that are always returned
         select_fields = [
@@ -69,7 +70,7 @@ class GetDataQueryBuilder:
                 column=sql.Identifier(config.OSM_COLUMN_GEOM),
             ),
         ]
-        self.params.extend([self.input_params.epsg_code] * 4)
+        params.extend([self.input_params.epsg_code] * 4)
 
         # Add extra where clause for subtypes if they are specified
         if self.input_params.osm_subtypes:
@@ -144,7 +145,7 @@ class GetDataQueryBuilder:
             columns=sql.SQL(", ").join(select_fields)
         )
         self.select_statement = select_statement
-        return select_statement
+        return select_statement, params
 
     def _create_from_statement(self) -> sql.SQL:
 
@@ -155,6 +156,12 @@ class GetDataQueryBuilder:
         return from_statement
 
     def _create_join_statement(self) -> Tuple[sql.SQL, List[Any]]:
+        """Builds SQL Join statement
+
+        Returns:
+            Tuple[sql.SQL, List[Any]]: Returns SQL language object and list of params
+        """
+        params = list()
 
         # the tags table contains all of the properties of the features
         join_statement = sql.SQL(
@@ -185,7 +192,7 @@ class GetDataQueryBuilder:
                 geom_column=sql.Identifier(config.OSM_COLUMN_GEOM),
                 alias=sql.Identifier(admin["alias"]),
             )
-            self.params.append(admin["level"])
+            params.append(admin["level"])
             join_statement = sql.SQL(" ").join([join_statement, admin_join])
 
         if (
@@ -228,7 +235,7 @@ class GetDataQueryBuilder:
                     ),
                 ]
             )
-            self.params += [
+            params += [
                 self.input_params.climate_ssp,
                 self.input_params.climate_variable,
                 tuple(set(self.input_params.climate_decade)),
@@ -238,17 +245,17 @@ class GetDataQueryBuilder:
             join_statement = sql.SQL(" ").join([join_statement, climate_join])
 
         self.join_statement = join_statement
-        return join_statement
+        return join_statement, params
 
     def _create_where_clause(self) -> Tuple[sql.SQL, List[Any]]:
-
+        params = list()
         # Always filter by osm type to throttle data output!
         where_clause = sql.SQL("WHERE {schema}.{primary_table}.{column} IN %s").format(
             schema=sql.Identifier(config.OSM_SCHEMA_NAME),
             primary_table=sql.Identifier(self.primary_table),
             column=sql.Identifier("osm_type"),
         )
-        self.params.append(tuple(self.input_params.osm_types))
+        params.append(tuple(self.input_params.osm_types))
 
         if self.input_params.osm_subtypes:
             subtype_clause = sql.SQL(
@@ -258,7 +265,7 @@ class GetDataQueryBuilder:
                 primary_table=sql.Identifier(self.primary_table),
                 column=sql.Identifier("osm_subtype"),
             )
-            self.params.append(tuple(self.input_params.osm_subtypes))
+            params.append(tuple(self.input_params.osm_subtypes))
             where_clause = sql.SQL(" ").join([where_clause, subtype_clause])
 
         if self.input_params.geom_type:
@@ -268,7 +275,7 @@ class GetDataQueryBuilder:
                 schema=sql.Identifier(config.OSM_SCHEMA_NAME),
                 primary_table=sql.Identifier(self.primary_table),
             )
-            self.params.append("ST_" + self.input_params.geom_type)
+            params.append("ST_" + self.input_params.geom_type)
             where_clause = sql.SQL(" ").join([where_clause, geom_type_clause])
 
         # If a bounding box GeoJSON is passed in, use as filter
@@ -289,9 +296,9 @@ class GetDataQueryBuilder:
                     primary_table=sql.Identifier(self.primary_table),
                     geom_column=sql.Identifier(config.OSM_COLUMN_GEOM),
                 )
-                self.params.append(self.input_params.epsg_code)
-                self.params.append(feature.geometry.wkt)
-                self.params.append(self.input_params.epsg_code)
+                params.append(self.input_params.epsg_code)
+                params.append(feature.geometry.wkt)
+                params.append(self.input_params.epsg_code)
                 bbox_filter = sql.SQL(" ").join([bbox_filter, feature_filter])
                 count += 1
             bbox_filter = sql.SQL(" ").join([bbox_filter, sql.SQL(")")])
@@ -299,7 +306,7 @@ class GetDataQueryBuilder:
             where_clause = sql.SQL(" ").join([where_clause, bbox_filter])
 
         self.where_clause = where_clause
-        return where_clause
+        return where_clause, params
 
     def _create_admin_table_conditions(self, condition: str) -> Dict:
 
@@ -311,9 +318,16 @@ class GetDataQueryBuilder:
 
         return admin_conditions
 
-    def build_query(self) -> sql.Composable:
+    def build_query(self) -> Tuple[sql.Composable, List[Any]]:
+        """
+        Builds SQL query based on user input
 
-        self.params = list()
+        Returns both query and query parameters
+
+        """
+
+        self.query_params = list()
+        self.query = sql.Composable()
 
         geojson_statement = sql.SQL(
             """ 
@@ -325,10 +339,16 @@ class GetDataQueryBuilder:
         """
         )
 
-        select_statement = self._create_select_statement()
+        select_statement, params = self._create_select_statement()
+        self.query_params.extend(params)
+
         from_statement = self._create_from_statement()
-        join_statement = self._create_join_statement()
-        where_clause = self._create_where_clause()
+
+        join_statement, params = self._create_join_statement()
+        self.query_params.extend(params)
+
+        where_clause, params = self._create_where_clause()
+        self.query_params.extend(params)
 
         self.query = sql.SQL(" ").join(
             [
@@ -341,9 +361,9 @@ class GetDataQueryBuilder:
             ]
         )
 
-        self.params = tuple(self.params)
+        params = tuple(params)
 
-        return self.query
+        return self.query, self.query_params
 
 
 

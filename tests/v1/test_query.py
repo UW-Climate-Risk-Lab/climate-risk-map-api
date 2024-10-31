@@ -175,7 +175,7 @@ TEST_BBOX = {
         ),
         # Climate query test case 1 - Any climate argument that is None will result in no climate columns returned
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
@@ -269,22 +269,10 @@ def test_create_select_statement(
     input_params, expected_select_statement, expected_params
 ):
 
-    query_builder = query.CRLQuery(
-        category=input_params["category"],
-        osm_types=input_params["osm_types"],
-        osm_subtypes=input_params["osm_subtypes"],
-        county=input_params["county"],
-        city=input_params["city"],
-        epsg_code=input_params["epsg_code"],
-        climate_variable=input_params["climate_variable"],
-        climate_decade=input_params["climate_decade"],
-        climate_month=input_params["climate_month"],
-        climate_ssp=input_params["climate_ssp"],
-        climate_metadata=input_params["climate_metadata"],
+    query_builder = query.GetDataQueryBuilder(input_params=input_params
     )
 
-    generated_select_statement = query_builder._create_select_statement()
-    generated_params = query_builder.params
+    generated_select_statement, generated_params = query_builder._create_select_statement()
 
     assert generated_select_statement == expected_select_statement
     assert generated_params == expected_params
@@ -294,7 +282,7 @@ def test_create_select_statement(
     "input_params, expected_from_statement",
     [
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
@@ -320,18 +308,7 @@ def test_create_select_statement(
 )
 def test_create_from_statement(input_params, expected_from_statement):
 
-    query_builder = query.CRLQuery(
-        category=input_params["category"],
-        osm_types=input_params["osm_types"],
-        osm_subtypes=input_params["osm_subtypes"],
-        county=input_params["county"],
-        city=input_params["city"],
-        epsg_code=input_params["epsg_code"],
-        climate_variable=input_params["climate_variable"],
-        climate_decade=input_params["climate_decade"],
-        climate_month=input_params["climate_month"],
-        climate_ssp=input_params["climate_ssp"],
-        climate_metadata=input_params["climate_metadata"],
+    query_builder = query.GetDataQueryBuilder(input_params=input_params
     )
 
     generated_from_statement = query_builder._create_from_statement()
@@ -344,7 +321,7 @@ def test_create_from_statement(input_params, expected_from_statement):
     [
         # Test case with all possible input params
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
@@ -487,7 +464,7 @@ def test_create_from_statement(input_params, expected_from_statement):
         ),
         # Test case with no city and no count
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
@@ -574,7 +551,7 @@ def test_create_from_statement(input_params, expected_from_statement):
         ),
         # Test case no climate
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
@@ -612,21 +589,9 @@ def test_create_join_statement(
     input_params, expected_join_statement, expected_params
 ):
 
-    query_builder = query.CRLQuery(
-        category=input_params["category"],
-        osm_types=input_params["osm_types"],
-        osm_subtypes=input_params["osm_subtypes"],
-        county=input_params["county"],
-        city=input_params["city"],
-        epsg_code=input_params["epsg_code"],
-        climate_variable=input_params["climate_variable"],
-        climate_decade=input_params["climate_decade"],
-        climate_month=input_params["climate_month"],
-        climate_ssp=input_params["climate_ssp"],
-        climate_metadata=input_params["climate_metadata"],
+    query_builder = query.GetDataQueryBuilder(input_params=input_params
     )
-    generated_join_statement = query_builder._create_join_statement()
-    generated_params = query_builder.params
+    generated_join_statement, generated_params = query_builder._create_join_statement()
 
     assert generated_join_statement == expected_join_statement
     assert generated_params == expected_params
@@ -636,7 +601,7 @@ def test_create_join_statement(
     "input_params, expected_where_clause, expected_params",
     [
         (
-            dict(
+            schemas.GetDataInputParameters(
                 category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
@@ -749,22 +714,8 @@ def test_create_join_statement(
 def test_create_where_clause(
     input_params, expected_where_clause, expected_params
 ):
-    query_builder = query.CRLQuery(
-        category=input_params["category"],
-        osm_types=input_params["osm_types"],
-        osm_subtypes=input_params["osm_subtypes"],
-        county=input_params["county"],
-        city=input_params["city"],
-        epsg_code=input_params["epsg_code"],
-        bbox=input_params["bbox"],
-        climate_variable=input_params["climate_variable"],
-        climate_decade=input_params["climate_decade"],
-        climate_month=input_params["climate_month"],
-        climate_ssp=input_params["climate_ssp"],
-        climate_metadata=input_params["climate_metadata"],
-    )
-    generated_where_clause = query_builder._create_where_clause()
-    generated_params = query_builder.params
+    query_builder = query.GetDataQueryBuilder(input_params=input_params)
+    generated_where_clause, generated_params = query_builder._create_where_clause()
 
     assert generated_where_clause == expected_where_clause
     assert generated_params == expected_params

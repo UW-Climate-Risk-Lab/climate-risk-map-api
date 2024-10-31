@@ -11,6 +11,7 @@ import app.database as database
 import app.v1.config as config
 from app.v1.query import GetDataQueryBuilder
 import app.v1.schemas as schemas
+import app.utils as utils
 
 router = APIRouter()
 
@@ -20,9 +21,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def get_gejson():
+    pass
 
-@router.get("/data/geojson/{category}/{osm_type}/")
-def get_geojson(
+def get_csv():
+    pass
+
+@router.get("/data/{response_format}/{category}/{osm_type}/")
+def get_data(
+    response_format: str, # TODO: configure to allow CSV or Geojson
     category: str,
     osm_type: str,
     osm_subtypes: List[str] | None = Query(None),
@@ -43,14 +50,25 @@ def get_geojson(
     # restrict to single type now to limit data transfer cost
     osm_types = (osm_type,)
 
-    # Parse
+    # 
     if bbox:
         try:
-            bbox = [schemas.BoundingBox(**json.loads(box)) for box in bbox]
+            bbox_list = [schemas.BoundingBox(**json.loads(box)) for box in bbox]
         except json.JSONDecodeError:
+            # User should input bbox(s) query parameter in this format
+            input_format = '{"xmin": -126.0, "xmax": -119.0, "ymin": 46.1, "ymax": 47.2}'
             return {
-                "error": "Invalid bounding box JSON format. Example: {'xmin': -126.0, 'xmax': -119.0, 'ymin': 46.1, 'ymax': 47.2}"
+                "error": f'Invalid bounding box JSON format. Example: bbox={input_format}'
             }
+        except ValueError as e:
+            return {
+                "error": str(e)
+            }
+        
+        try:
+            bbox = utils.create_bbox(bbox_list)
+        except Exception as e:
+            print(str(e))
 
     try:
         input_params = schemas.GetDataInputParameters(
