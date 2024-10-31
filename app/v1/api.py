@@ -43,6 +43,7 @@ def get_data(
     climate_month: List[int] | None = Query(None),
     climate_decade: List[int] | None = Query(None),
     climate_metadata: bool = False,
+    limit: int | None = None
 ) -> Dict:
 
     # Convert to list to match schema
@@ -85,6 +86,7 @@ def get_data(
             climate_month=climate_month,
             climate_decade=climate_decade,
             climate_metadata=climate_metadata,
+            limit=limit
         )
         print(input_params)
     except ValueError as e:
@@ -92,10 +94,9 @@ def get_data(
 
     query_builder = GetDataQueryBuilder(input_params)
 
-    query = query_builder.build_query()
-    params = query_builder.params
+    query, query_params = query_builder.build_query()
 
-    result = database.execute_query(query=query, params=tuple(params))
+    result = database.execute_query(query=query, params=query_params)
     result = result[0][0]
 
     try:

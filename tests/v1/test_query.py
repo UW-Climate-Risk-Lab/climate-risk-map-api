@@ -719,3 +719,29 @@ def test_create_where_clause(
 
     assert generated_where_clause == expected_where_clause
     assert generated_params == expected_params
+
+
+def test_create_limit():
+    # Set the limit value
+    input_params = schemas.GetDataInputParameters(
+                category="infrastructure",
+                osm_types=["power"],
+                osm_subtypes=["line"],
+                county=True,
+                city=True,
+                epsg_code=4326,
+                climate_variable="burntFractionAll",
+                climate_decade=[2060, 2070],
+                climate_month=[8, 9],
+                climate_ssp=126,
+                climate_metadata=True,
+                bbox=FeatureCollection(type=TEST_BBOX["type"], features=TEST_BBOX["features"]),
+                limit=10
+            )
+    query_builder =  query.GetDataQueryBuilder(input_params=input_params)
+
+    limit_statement, params = query_builder._create_limit()
+
+    # Check the results
+    assert limit_statement == SQL("LIMIT %s")
+    assert params == [10]

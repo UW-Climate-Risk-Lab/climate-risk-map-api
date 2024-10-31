@@ -66,6 +66,7 @@ class GetDataInputParameters(BaseModel):
     climate_month: Optional[List[int]] = None
     climate_decade: Optional[List[int]] = None
     climate_metadata: bool = False
+    limit: Optional[int] = None
 
     # Custom validator to check that if climate data is provided, all required fields are present
     @model_validator(mode="after")

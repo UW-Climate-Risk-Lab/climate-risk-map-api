@@ -307,6 +307,21 @@ class GetDataQueryBuilder:
 
         self.where_clause = where_clause
         return where_clause, params
+    
+    def _create_limit(self) -> Tuple[sql.SQL, List[Any]]:
+        """Adds limit to reduce size of output, for debugging and throttling
+        
+        NOTE: This limits records, not discrete geo features. 
+        TODO:is to refactor to make sure features are not repeated in return data
+        
+        """
+        params = list()
+        if self.input_params.limit:
+            limit_statement = sql.SQL("LIMIT %s")
+            params.append(self.input_params.limit)
+            return limit_statement, params
+        return sql.SQL(""), params
+
 
     def _create_admin_table_conditions(self, condition: str) -> Dict:
 
@@ -318,6 +333,7 @@ class GetDataQueryBuilder:
 
         return admin_conditions
 
+
     def build_query(self) -> Tuple[sql.Composable, List[Any]]:
         """
         Builds SQL query based on user input
@@ -327,7 +343,7 @@ class GetDataQueryBuilder:
         """
 
         self.query_params = list()
-        self.query = sql.Composable()
+        self.query = sql.SQL("")
 
         geojson_statement = sql.SQL(
             """ 
@@ -350,6 +366,10 @@ class GetDataQueryBuilder:
         where_clause, params = self._create_where_clause()
         self.query_params.extend(params)
 
+        limit_statement, params = self._create_limit()
+        self.query_params.extend(params)
+
+
         self.query = sql.SQL(" ").join(
             [
                 geojson_statement,
@@ -357,11 +377,12 @@ class GetDataQueryBuilder:
                 from_statement,
                 join_statement,
                 where_clause,
+                limit_statement,
                 sql.SQL(") AS geojson;"),
             ]
         )
 
-        params = tuple(params)
+        self.query_params = tuple(self.query_params)
 
         return self.query, self.query_params
 
