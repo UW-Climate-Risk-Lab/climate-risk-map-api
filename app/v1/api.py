@@ -10,6 +10,7 @@ from psycopg2 import sql
 import app.database as database
 import app.v1.config as config
 from app.v1.query import GetDataQueryBuilder
+import time
 import app.v1.schemas as schemas
 import app.utils as utils
 
@@ -96,8 +97,11 @@ def get_data(
 
     query, query_params = query_builder.build_query()
 
+    start_time = time.time()
     result = database.execute_query(query=query, params=query_params)
     result = result[0][0]
+    elapsed_time = time.time() - start_time
+    print(f"Time taken to query database: {elapsed_time:.4f} seconds")
 
     try:
         if result["features"] is None:
@@ -106,6 +110,15 @@ def get_data(
             pass
     except KeyError as e:
         logger.error("Get GeoJSON database response has no key 'features'")
+
+    if climate_variable:
+        start_time = time.time()
+        
+        result = utils.aggregate_geojson_data(raw_geojson=result)
+        
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Time taken to aggregate geojson data: {elapsed_time:.2f} seconds")
 
     # Serialize the response data to JSON
     response_json = json.dumps(result)
@@ -116,7 +129,7 @@ def get_data(
     # Convert the size from bytes to megabytes (MB)
     size_in_mb = size_in_bytes / (1024 * 1024)
 
-    print(size_in_mb)
+    print(f"Size of response: {size_in_mb:.2f} MB")
 
     try:
         schemas.GetGeoJsonOutput(geojson=result)
