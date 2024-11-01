@@ -1,11 +1,12 @@
 from typing import Any, Dict, List, Optional, Tuple
 import logging
 import json
-
+import os
 
 from fastapi import APIRouter, HTTPException, Query
 from geojson_pydantic import FeatureCollection
 from psycopg2 import sql
+from pydantic import ValidationError
 
 import app.database as database
 import app.v1.config as config
@@ -16,41 +17,45 @@ import app.v1.utils as utils
 
 router = APIRouter()
 
+S3_BUCKET = os.environ["S3_BUCKET"]
+S3_BASE_PREFIX = os.environ["S3_BASE_PREFIX"]
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-def get_gejson():
-    pass
-
-def get_csv():
-    pass
-
-@router.get("/data/{response_format}/{category}/{osm_type}/")
+@router.get("/data/{response_format}/{category}/{osm_type}/{osm_subtype}/")
 def get_data(
     response_format: str, # TODO: configure to allow CSV or Geojson
     category: str,
     osm_type: str,
-    osm_subtypes: List[str] | None = Query(None),
+    osm_subtype: str,
     bbox: List[str] | None = Query(None),
     epsg_code: int = 4326,
     geom_type: str | None = None,
     climate_variable: str | None = None,
     climate_ssp: int | None = None,
-    climate_month: List[int] | None = Query(None),
-    climate_decade: List[int] | None = Query(None),
-    climate_metadata: bool = False,
+    climate_month: int | None = None,
+    climate_decade: int | None = None,
     limit: int | None = None
 ) -> Dict:
 
-    # Convert to list to match schema
-    # In the future users may be able to included multiple types,
-    # restrict to single type now to limit data transfer cost
+    # Public facing API will not allow users to input lists of types, months, and decades to limit data size
+    # Convert to single element tuple after request since query builder can handle lists
     osm_types = (osm_type,)
+    if osm_subtype:
+        osm_subtypes = (osm_subtype,)
+    if climate_month:
+        climate_month = (climate_month,)
+    if climate_decade:
+        climate_decade = (climate_decade, )
+    
+    # TODO: Add CSV response format
+    if response_format.lower() not in ["geojson"]:
+        raise HTTPException(status_code=422, detail=f"{response_format} response format not supported")
 
-    # 
     if bbox:
         try:
             bbox_list = [schemas.BoundingBox(**json.loads(box)) for box in bbox]
@@ -68,7 +73,8 @@ def get_data(
         try:
             bbox = utils.create_bbox(bbox_list)
         except Exception as e:
-            print(str(e))
+            logger.error(f"Error creating geojson from bounding box input: {str(e)}")
+            raise HTTPException(status_code=500, detail="There was an error parsing provided bounding boxes")
 
     try:
         input_params = schemas.GetDataInputParameters(
@@ -82,7 +88,6 @@ def get_data(
             climate_ssp=climate_ssp,
             climate_month=climate_month,
             climate_decade=climate_decade,
-            climate_metadata=climate_metadata,
             limit=limit
         )
         print(input_params)
@@ -93,21 +98,14 @@ def get_data(
 
     query, query_params = query_builder.build_query()
 
-    start_time = time.time()
     result = database.execute_query(query=query, params=query_params)
     result = result[0][0]
-    elapsed_time = time.time() - start_time
-    print(f"Time taken to query database: {elapsed_time:.4f} seconds")
 
     try:
         if result["features"] is None:
             result["features"] = list()
         else:
-            start_time = time.time()
             result = utils.clean_geojson_data(raw_geojson=result)
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-            print(f"Time taken to aggregate geojson data: {elapsed_time:.2f} seconds")
     except KeyError as e:
         logger.error("Get GeoJSON database response has no key 'features'")
 
@@ -120,6 +118,10 @@ def get_data(
     # Convert the size from bytes to megabytes (MB)
     size_in_mb = size_in_bytes / (1024 * 1024)
 
+    threshold_size_mb = 6
+
+    
+
     print(f"Size of response: {size_in_mb:.2f} MB")
 
     try:
@@ -128,6 +130,11 @@ def get_data(
         logger.error(f"Validation of GeoJSON return object schema failed for GET geojson: {str(e)}")
         raise HTTPException(status_code=500, detail="Return GeoJSON format failed validation. Please contact us!") 
 
+    if size_in_mb > threshold_size_mb:
+        # Upload to S3 and get presigned URL
+        presigned_url = utils.upload_to_s3_and_get_presigned_url(bucket_name=S3_BUCKET, prefix=S3_BASE_PREFIX, data=result)
+        return {"presigned_url": presigned_url}
+    
     return result
 
 

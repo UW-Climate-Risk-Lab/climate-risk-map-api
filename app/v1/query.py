@@ -2,7 +2,6 @@
 This module houses code relating to building SQL queries
 """
 
-
 from psycopg2 import sql
 
 from typing import List, Dict, Tuple, Optional, Any
@@ -14,7 +13,7 @@ from app.v1.schemas import GetDataInputParameters
 
 class GetDataQueryBuilder:
     """Creates query for PG OSM Flex Database
-    
+
     The query will return data in a GeoJSON format
     """
 
@@ -42,7 +41,11 @@ class GetDataQueryBuilder:
         select_fields = [
             sql.Identifier(config.OSM_SCHEMA_NAME, self.primary_table, "osm_id"),
             sql.Identifier(config.OSM_SCHEMA_NAME, self.primary_table, "osm_type"),
-            sql.Identifier(config.OSM_SCHEMA_NAME, config.OSM_TABLE_TAGS, "tags"),
+            sql.SQL("{schema}.{table}.{column} AS osm_tags").format(
+                schema=sql.Identifier(config.OSM_SCHEMA_NAME),
+                table=sql.Identifier(config.OSM_TABLE_TAGS),
+                column=sql.Identifier("tags"),
+            ),
             sql.SQL("ST_Transform({schema}.{table}.{column}, %s) AS geometry").format(
                 schema=sql.Identifier(config.OSM_SCHEMA_NAME),
                 table=sql.Identifier(self.primary_table),
@@ -88,7 +91,6 @@ class GetDataQueryBuilder:
         )
         select_fields.append(county_field)
 
-
         conditions = self._create_admin_table_conditions("city")
         city_field = sql.SQL("{admin_table_alias}.name AS city").format(
             schema=sql.Identifier(config.OSM_SCHEMA_NAME),
@@ -132,13 +134,6 @@ class GetDataQueryBuilder:
                     climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
                 )
             )
-            if self.input_params.climate_metadata:
-                select_fields.append(
-                    sql.SQL("{climate_table_alias}.climate_metadata").format(
-                        climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
-                        climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
-                    )
-                )
 
         select_statement = sql.SQL("SELECT {columns}").format(
             columns=sql.SQL(", ").join(select_fields)
@@ -202,7 +197,7 @@ class GetDataQueryBuilder:
                 [
                     sql.SQL("LEFT JOIN ("),
                     sql.SQL(
-                        "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value, v.metadata AS climate_metadata "
+                        "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value "
                     ),
                     sql.SQL("FROM {climate_schema}.{scenariomip} s ").format(
                         climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
@@ -304,13 +299,13 @@ class GetDataQueryBuilder:
 
         self.where_clause = where_clause
         return where_clause, params
-    
+
     def _create_limit(self) -> Tuple[sql.SQL, List[Any]]:
         """Adds limit to reduce size of output, for debugging and throttling
-        
-        NOTE: This limits records, not discrete geo features. 
+
+        NOTE: This limits records, not discrete geo features.
         TODO:is to refactor to make sure features are not repeated in return data
-        
+
         """
         params = list()
         if self.input_params.limit:
@@ -318,7 +313,6 @@ class GetDataQueryBuilder:
             params.append(self.input_params.limit)
             return limit_statement, params
         return sql.SQL(""), params
-
 
     def _create_admin_table_conditions(self, condition: str) -> Dict:
 
@@ -329,7 +323,6 @@ class GetDataQueryBuilder:
         }
 
         return admin_conditions
-
 
     def build_query(self) -> Tuple[sql.Composable, List[Any]]:
         """
@@ -366,7 +359,6 @@ class GetDataQueryBuilder:
         limit_statement, params = self._create_limit()
         self.query_params.extend(params)
 
-
         self.query = sql.SQL(" ").join(
             [
                 geojson_statement,
@@ -382,6 +374,3 @@ class GetDataQueryBuilder:
         self.query_params = tuple(self.query_params)
 
         return self.query, self.query_params
-
-
-

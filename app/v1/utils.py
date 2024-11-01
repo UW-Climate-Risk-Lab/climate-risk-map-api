@@ -1,9 +1,22 @@
-from typing import List, Dict, Any
+import json
+import uuid
+from typing import Any, Dict, List
+import logging
+
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from geojson_pydantic import FeatureCollection
-from geojson_pydantic.geometries import Polygon
 from geojson_pydantic.features import Feature
+from geojson_pydantic.geometries import Polygon
+from fastapi import HTTPException
+
 import app.v1.schemas as schemas
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 def create_bbox(bboxes: List[schemas.BoundingBox]) -> FeatureCollection:
     """Creates GeoJSON spec. object from list of Bounding Boxes
@@ -62,39 +75,17 @@ def clean_geojson_data(raw_geojson: Dict[str, Any]) -> Dict[str, Any]:
                     if k
                     not in [
                         "geometry_wkt",
+                        "latitude",
+                        "longitude",
                         "county",
                         "city",
-                        "climate_variable",
-                        "ssp",
-                        "month",
-                        "decade",
-                        "climate_exposure",
                     ]
                 },
-            }
-            # Creates a "climate" property
-            aggregated_features[osm_id]["properties"]["climate"] = {
-                "variable": properties.get("climate_variable"),
-                "ssp": properties.get("ssp"),
-                "months": [],
-                "decades": [],
-                "exposures": [],
             }
             aggregated_features[osm_id]["properties"]["city"] = []
             aggregated_features[osm_id]["properties"]["county"] = []
 
             present_osm_ids.add(osm_id)
-
-        # Append the climate data to the lists
-        aggregated_features[osm_id]["properties"]["climate"]["months"].append(
-            properties.get("month")
-        )
-        aggregated_features[osm_id]["properties"]["climate"]["decades"].append(
-            properties.get("decade")
-        )
-        aggregated_features[osm_id]["properties"]["climate"]["exposures"].append(
-            properties.get("climate_exposure")
-        )
 
         city = properties.get("city")
         county = properties.get("county")
@@ -109,3 +100,45 @@ def clean_geojson_data(raw_geojson: Dict[str, Any]) -> Dict[str, Any]:
     new_features = list(aggregated_features.values())
 
     return {"type": "FeatureCollection", "features": new_features}
+
+
+def upload_to_s3_and_get_presigned_url(
+    bucket_name: str, prefix: str, data: dict, expiration: int = 3600
+) -> str:
+    """
+    Uploads data to S3 and returns a presigned URL.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        prefix (str): The name of the S3 prefix.
+        data (dict): The data to upload.
+        expiration (int): Time in seconds for the presigned URL to remain valid.
+
+    Returns:
+        str: The presigned URL.
+    """
+    s3_client = boto3.client("s3")
+    object_key = prefix + f"{uuid.uuid4()}.geojson"
+
+    try:
+        # Upload the data to S3
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=object_key,
+            Body=json.dumps(data),
+            ContentType="application/json",
+        )
+
+        # Generate a presigned URL
+        presigned_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": object_key},
+            ExpiresIn=expiration,
+        )
+
+        return presigned_url
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        logger.error(f"Error uploading to S3: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail="Error uploading to S3. Please contact us!"
+        )

@@ -73,7 +73,6 @@ TEST_BBOX = {
                 climate_decade=[2060, 2070],
                 climate_month=[8, 9],
                 climate_ssp=126,
-                climate_metadata=True,
             ),
             Composed(
                 [
@@ -84,7 +83,16 @@ TEST_BBOX = {
                             SQL(", "),
                             Identifier("osm", "infrastructure", "osm_type"),
                             SQL(", "),
-                            Identifier("osm", "tags", "tags"),
+                            Composed(
+                                [
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    Identifier("tags"),
+                                    SQL("."),
+                                    Identifier("tags"),
+                                    SQL(" AS osm_tags"),
+                                ]
+                            ),
                             SQL(", "),
                             Composed(
                                 [
@@ -159,10 +167,6 @@ TEST_BBOX = {
                                     SQL(".value AS climate_exposure"),
                                 ]
                             ),
-                            SQL(", "),
-                            Composed(
-                                [Identifier("climate_data"), SQL(".climate_metadata")]
-                            ),
                         ]
                     ),
                 ]
@@ -180,7 +184,6 @@ TEST_BBOX = {
                 climate_decade=None,
                 climate_month=None,
                 climate_ssp=None,
-                climate_metadata=True,
             ),
             Composed(
                 [
@@ -191,7 +194,16 @@ TEST_BBOX = {
                             SQL(", "),
                             Identifier("osm", "infrastructure", "osm_type"),
                             SQL(", "),
-                            Identifier("osm", "tags", "tags"),
+                            Composed(
+                                [
+                                    Identifier("osm"),
+                                    SQL("."),
+                                    Identifier("tags"),
+                                    SQL("."),
+                                    Identifier("tags"),
+                                    SQL(" AS osm_tags"),
+                                ]
+                            ),
                             SQL(", "),
                             Composed(
                                 [
@@ -286,7 +298,6 @@ def test_create_select_statement(
                 climate_decade=[2060, 2070],
                 climate_month=[8, 9],
                 climate_ssp=126,
-                climate_metadata=True,
             ),
             Composed(
                 [
@@ -322,7 +333,6 @@ def test_create_from_statement(input_params, expected_from_statement):
                 climate_decade=[2060, 2070],
                 climate_month=[8, 9],
                 climate_ssp=126,
-                climate_metadata=True,
             ),
             Composed(
                 [
@@ -404,7 +414,7 @@ def test_create_from_statement(input_params, expected_from_statement):
                         [
                             SQL("LEFT JOIN ("),
                             SQL(
-                                "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value, v.metadata AS climate_metadata "
+                                "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value "
                             ),
                             Composed(
                                 [
@@ -463,7 +473,6 @@ def test_create_from_statement(input_params, expected_from_statement):
                 climate_decade=None,
                 climate_month=None,
                 climate_ssp=None,
-                climate_metadata=False,
             ),
             Composed(
                 [
@@ -566,7 +575,6 @@ def test_create_join_statement(input_params, expected_join_statement, expected_p
                 climate_decade=[2060, 2070],
                 climate_month=[8, 9],
                 climate_ssp=126,
-                climate_metadata=True,
                 bbox=FeatureCollection(
                     type=TEST_BBOX["type"], features=TEST_BBOX["features"]
                 ),
@@ -688,7 +696,6 @@ def test_create_limit():
         climate_decade=[2060, 2070],
         climate_month=[8, 9],
         climate_ssp=126,
-        climate_metadata=True,
         bbox=FeatureCollection(type=TEST_BBOX["type"], features=TEST_BBOX["features"]),
         limit=10,
     )

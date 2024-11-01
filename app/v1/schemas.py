@@ -8,7 +8,6 @@ class BoundingBox(BaseModel):
     """
     x = longtiude
     y = latitude
-
     """
     xmax: float 
     xmin: float 
@@ -26,7 +25,6 @@ class BoundingBox(BaseModel):
         if not -90 <= v <= 90:
             raise ValueError('Latitude must be between -90 and 90')
         return v
-
 
 class GetGeoJsonOutput(BaseModel):
     """Checks output is a GeoJSON"""
@@ -46,7 +44,6 @@ class GetDataInputParameters(BaseModel):
     climate_ssp (int): Climate SSP (Shared Socioeconomic Pathway) to filter on.
     climate_month (List[int]): List of months to filter on.
     climate_decade (List[int]): List of decades to filter on.
-    climate_metadata (bool): Returns metadata of climate variable as dict.
 
     """
 
@@ -60,7 +57,6 @@ class GetDataInputParameters(BaseModel):
     climate_ssp: Optional[int] = None
     climate_month: Optional[List[int]] = None
     climate_decade: Optional[List[int]] = None
-    climate_metadata: bool = False
     limit: Optional[int] = None
 
     # Custom validator to check that if climate data is provided, all required fields are present
