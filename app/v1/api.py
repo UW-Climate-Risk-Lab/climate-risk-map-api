@@ -18,7 +18,8 @@ import app.v1.utils as utils
 router = APIRouter()
 
 S3_BUCKET = os.environ["S3_BUCKET"]
-S3_BASE_PREFIX = os.environ["S3_BASE_PREFIX"]
+S3_BASE_PREFIX_USER_DOWNLOADS = os.environ["S3_BASE_PREFIX_USER_DOWNLOADS"]
+DATA_SIZE_RETURN_LIMIT_MB=float(os.environ["DATA_SIZE_RETURN_LIMIT_MB"])
 
 # Configure logging
 logging.basicConfig(
@@ -26,10 +27,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@router.get("/data/{response_format}/{category}/{osm_type}/{osm_subtype}/")
+
+@router.get("/data/{response_format}/{osm_category}/{osm_type}/{osm_subtype}/")
 def get_data(
-    response_format: str, # TODO: configure to allow CSV or Geojson
-    category: str,
+    response_format: str,  # TODO: configure to allow CSV or Geojson
+    osm_category: str,
     osm_type: str,
     osm_subtype: str,
     bbox: List[str] | None = Query(None),
@@ -39,7 +41,7 @@ def get_data(
     climate_ssp: int | None = None,
     climate_month: int | None = None,
     climate_decade: int | None = None,
-    limit: int | None = None
+    limit: int | None = None,
 ) -> Dict:
 
     # Public facing API will not allow users to input lists of types, months, and decades to limit data size
@@ -50,35 +52,40 @@ def get_data(
     if climate_month:
         climate_month = (climate_month,)
     if climate_decade:
-        climate_decade = (climate_decade, )
-    
+        climate_decade = (climate_decade,)
+
     # TODO: Add CSV response format
     if response_format.lower() not in ["geojson"]:
-        raise HTTPException(status_code=422, detail=f"{response_format} response format not supported")
+        raise HTTPException(
+            status_code=422, detail=f"{response_format} response format not supported"
+        )
 
     if bbox:
         try:
             bbox_list = [schemas.BoundingBox(**json.loads(box)) for box in bbox]
         except json.JSONDecodeError:
             # User should input bbox(s) query parameter in this format
-            input_format = '{"xmin": -126.0, "xmax": -119.0, "ymin": 46.1, "ymax": 47.2}'
+            input_format = (
+                '{"xmin": -126.0, "xmax": -119.0, "ymin": 46.1, "ymax": 47.2}'
+            )
             return {
-                "error": f'Invalid bounding box JSON format. Example: bbox={input_format}'
+                "error": f"Invalid bounding box JSON format. Example: bbox={input_format}"
             }
         except ValueError as e:
-            return {
-                "error": str(e)
-            }
-        
+            return {"error": str(e)}
+
         try:
             bbox = utils.create_bbox(bbox_list)
         except Exception as e:
             logger.error(f"Error creating geojson from bounding box input: {str(e)}")
-            raise HTTPException(status_code=500, detail="There was an error parsing provided bounding boxes")
+            raise HTTPException(
+                status_code=500,
+                detail="There was an error parsing provided bounding boxes",
+            )
 
     try:
         input_params = schemas.GetDataInputParameters(
-            category=category,
+            osm_category=osm_category,
             osm_types=osm_types,
             osm_subtypes=osm_subtypes,
             bbox=bbox,
@@ -88,15 +95,13 @@ def get_data(
             climate_ssp=climate_ssp,
             climate_month=climate_month,
             climate_decade=climate_decade,
-            limit=limit
+            limit=limit,
         )
         print(input_params)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    query_builder = GetDataQueryBuilder(input_params)
-
-    query, query_params = query_builder.build_query()
+    query, query_params = GetDataQueryBuilder(input_params).build_query()
 
     result = database.execute_query(query=query, params=query_params)
     result = result[0][0]
@@ -109,32 +114,25 @@ def get_data(
     except KeyError as e:
         logger.error("Get GeoJSON database response has no key 'features'")
 
-    # Serialize the response data to JSON
-    response_json = json.dumps(result)
-
-    # Calculate the size of the serialized JSON string in bytes
-    size_in_bytes = len(response_json.encode("utf-8"))
-
-    # Convert the size from bytes to megabytes (MB)
-    size_in_mb = size_in_bytes / (1024 * 1024)
-
-    threshold_size_mb = 6
-
-    
-
-    print(f"Size of response: {size_in_mb:.2f} MB")
 
     try:
         schemas.GetGeoJsonOutput(geojson=result)
     except Exception as e:
-        logger.error(f"Validation of GeoJSON return object schema failed for GET geojson: {str(e)}")
-        raise HTTPException(status_code=500, detail="Return GeoJSON format failed validation. Please contact us!") 
+        logger.error(
+            f"Validation of GeoJSON return object schema failed for GET geojson: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Return GeoJSON format failed validation. Please contact us!",
+        )
 
-    if size_in_mb > threshold_size_mb:
-        # Upload to S3 and get presigned URL
-        presigned_url = utils.upload_to_s3_and_get_presigned_url(bucket_name=S3_BUCKET, prefix=S3_BASE_PREFIX, data=result)
+    if utils.check_data_size(data=json.dumps(result), threshold=DATA_SIZE_RETURN_LIMIT_MB):
+
+        presigned_url = utils.upload_to_s3_and_get_presigned_url(
+            bucket_name=S3_BUCKET, prefix=S3_BASE_PREFIX_USER_DOWNLOADS, data=result
+        )
         return {"presigned_url": presigned_url}
-    
+
     return result
 
 
@@ -158,5 +156,8 @@ def get_climate_metadata(climate_variable: str, ssp: str) -> Dict:
     )
 
     result = database.execute_query(query=query, params=(climate_variable, ssp))
+    result = result[0][0]
 
-    return result[0][0]
+    return {"climate_variable": climate_variable,
+            "ssp": ssp,
+            "metadata": result}

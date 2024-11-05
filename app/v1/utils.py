@@ -142,3 +142,25 @@ def upload_to_s3_and_get_presigned_url(
         raise HTTPException(
             status_code=500, detail="Error uploading to S3. Please contact us!"
         )
+
+def check_data_size(data: str, threshold: float) -> bool:
+    """Checks if the size of the str (in MB) is greater than the threshold
+
+    Args:
+        data (str): String data (commonly used will be the output of json.dumps())
+        threshold (float): Threshold size in megabytes
+
+    Returns:
+        bool: True if over threshold
+    """
+
+    # Calculate the size of the serialized JSON string in bytes
+    size_in_bytes = len(data.encode("utf-8"))
+
+    # Convert the size from bytes to megabytes (MB)
+    size_in_mb = size_in_bytes / (1024 * 1024)
+
+    if size_in_mb > threshold:
+        return True
+    else:
+        return False

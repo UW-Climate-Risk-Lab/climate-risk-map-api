@@ -34,7 +34,7 @@ class GetGeoJsonOutput(BaseModel):
 class GetDataInputParameters(BaseModel):
     """Used to validate input parameters
 
-    category (str): OSM Category to get data from.
+    osm_category (str): OSM Category to get data from.
     osm_types (List[str]): OSM Type to filter on.
     osm_subtypes (List[str]): OSM Subtypes to filter on.
     bbox (FeatureCollection): Bounding Box. GeoJSON Spec format. Used for filtering.
@@ -47,7 +47,7 @@ class GetDataInputParameters(BaseModel):
 
     """
 
-    category: str
+    osm_category: str
     osm_types: List[str]
     osm_subtypes: Optional[List[str]] = None
     bbox: Optional[FeatureCollection] = None
@@ -89,12 +89,12 @@ class GetDataInputParameters(BaseModel):
     
     @model_validator(mode="after")
     def check_available_categories(self):
-        if self.category not in config.OSM_AVAILABLE_CATEGORIES.keys():
-            raise ValueError(f"{self.category} is not available")
+        if self.osm_category not in config.OSM_AVAILABLE_CATEGORIES.keys():
+            raise ValueError(f"{self.osm_category} is not available")
         return self
         
     @model_validator(mode="after")
     def set_osm_subtypes(self):
-        if not config.OSM_AVAILABLE_CATEGORIES[self.category]["has_subtypes"]:
+        if not config.OSM_AVAILABLE_CATEGORIES[self.osm_category]["has_subtypes"]:
             self.osm_subtypes = None
         return self

@@ -90,7 +90,7 @@ Retrieve data based on various parameters.
 - **Endpoint**
 
   ```
-  GET /api/v1/data/{response_format}/{category}/{osm_type}/
+  GET /api/v1/data/{response_format}/{osm_category}/{osm_type}/
   ```
 
 - **Parameters**
@@ -98,7 +98,7 @@ Retrieve data based on various parameters.
   | Name               | Type     | Description                                                   |
   | ------------------ | -------- | ------------------------------------------------------------- |
   | `response_format`  | String   | Format of the response (`geojson` or `csv`).                 |
-  | `category`         | String   | OSM Category to retrieve data from.                           |
+  | `osm_category`         | String   | OSM Category to retrieve data from.                           |
   | `osm_type`         | String   | OSM Type to filter on.                                        |
   | `osm_subtypes`     | List&lt;String&gt; | (Optional) OSM Subtypes to filter on.                      |
   | `bbox`             | List&lt;String&gt; | (Optional) Bounding box in JSON format (*bbox={"xmin": -126.0, "xmax": -119.0, "ymin": 46.1, "ymax": 47.2}*).                 |

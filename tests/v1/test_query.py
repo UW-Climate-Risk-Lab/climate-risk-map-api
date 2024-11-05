@@ -65,7 +65,7 @@ TEST_BBOX = {
         # Select with climate arguments
         (
             schemas.GetDataInputParameters(
-                category="infrastructure",
+                osm_category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 epsg_code=4326,
@@ -176,7 +176,7 @@ TEST_BBOX = {
         # Climate query test case 1 - Any climate argument that is None will result in no climate columns returned
         (
             schemas.GetDataInputParameters(
-                category="infrastructure",
+                osm_category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 epsg_code=4326,
@@ -290,7 +290,7 @@ def test_create_select_statement(
     [
         (
             schemas.GetDataInputParameters(
-                category="infrastructure",
+                osm_category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 epsg_code=4326,
@@ -325,7 +325,7 @@ def test_create_from_statement(input_params, expected_from_statement):
         # Test case with all possible input params
         (
             schemas.GetDataInputParameters(
-                category="infrastructure",
+                osm_category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 epsg_code=4326,
@@ -465,7 +465,7 @@ def test_create_from_statement(input_params, expected_from_statement):
         # Test case no climate
         (
             schemas.GetDataInputParameters(
-                category="infrastructure",
+                osm_category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 epsg_code=4326,
@@ -565,7 +565,7 @@ def test_create_join_statement(input_params, expected_join_statement, expected_p
     [
         (
             schemas.GetDataInputParameters(
-                category="infrastructure",
+                osm_category="infrastructure",
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 county=True,
@@ -686,7 +686,7 @@ def test_create_where_clause(input_params, expected_where_clause, expected_param
 def test_create_limit():
     # Set the limit value
     input_params = schemas.GetDataInputParameters(
-        category="infrastructure",
+        osm_category="infrastructure",
         osm_types=["power"],
         osm_subtypes=["line"],
         county=True,

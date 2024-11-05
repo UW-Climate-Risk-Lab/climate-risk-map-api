@@ -22,7 +22,7 @@ class GetDataQueryBuilder:
         self.input_params = input_params
 
         # Primary table will be a materialized view of the given category
-        self.primary_table = self.input_params.category
+        self.primary_table = self.input_params.osm_category
 
     def _create_select_statement(self) -> Tuple[sql.SQL, List[Any]]:
         """Bulids a dynamic SQL SELECT statement for the get_osm_data method
