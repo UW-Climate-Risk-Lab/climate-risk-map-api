@@ -1,17 +1,15 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List
 import logging
 import json
 import os
 
 from fastapi import APIRouter, HTTPException, Query
-from geojson_pydantic import FeatureCollection
 from psycopg2 import sql
-from pydantic import ValidationError
 
 import app.database as database
+
 import app.v1.config as config
 from app.v1.query import GetDataQueryBuilder
-import time
 import app.v1.schemas as schemas
 import app.v1.utils as utils
 
