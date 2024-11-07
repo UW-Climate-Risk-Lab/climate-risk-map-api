@@ -6,12 +6,13 @@ import os
 from fastapi import APIRouter, HTTPException, Query
 from psycopg2 import sql
 
-import app.database as database
+from .. import database
 
-import app.v1.config as config
-from app.v1.query import GetDataQueryBuilder
-import app.v1.schemas as schemas
-import app.v1.utils as utils
+from . import config
+from . import schemas
+from . import utils
+
+from .query import GetDataQueryBuilder
 
 router = APIRouter()
 

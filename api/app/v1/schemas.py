@@ -2,7 +2,7 @@ from geojson_pydantic import FeatureCollection
 from pydantic import BaseModel, model_validator, field_validator
 from typing import List, Optional, Tuple
 
-import app.v1.config as config
+from . import config
 
 class BoundingBox(BaseModel):
     """

@@ -6,9 +6,9 @@ from psycopg2 import sql
 
 from typing import List, Dict, Tuple, Optional, Any
 
-import app.v1.config as config
+from . import config
 
-from app.v1.schemas import GetDataInputParameters
+from .schemas import GetDataInputParameters
 
 
 class GetDataQueryBuilder:
