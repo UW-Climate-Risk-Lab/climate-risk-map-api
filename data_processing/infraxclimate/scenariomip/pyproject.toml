@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "scenariomip-pipeline"
+description = "Used for running batch process of cmip6 data for climate variables and outputting geotiffs and loading data into database"
+authors = ["Eric Colllins <ecol07@uw.edu>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "3.11.2"
+xarray = "^2024.7"
+numpy = "^2"
+s3fs = "^0.4"
+h5netcdf = "^1"
+rioxarray = "^0.17"
+cftime = "^1.6"
+psycopg2-binary = "^2.9.9"
+boto3 = "^1.35.11"
+geopandas = "^1.0.1"
+xvec = "^0.3.0"
+exactextract = "^0.2.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

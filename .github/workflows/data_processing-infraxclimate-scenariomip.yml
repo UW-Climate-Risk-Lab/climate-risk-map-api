@@ -1,0 +1,49 @@
+name: data_processing/infraxclimate/scenariomip CI-CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "data_processing/infraxclimate/scenariomip/**" ]
+  
+  pull_request:
+    branches: [ "main" ]
+    paths: [ "data_processing/infraxclimate/scenariomip/**" ]
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:  
+          python-version: '3.11.2'
+
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.8.3 python3 -
+          echo "export PATH=$HOME/.local/bin:$PATH" >> $HOME/.bashrc
+          source $HOME/.bashrc
+
+      - name: Install Dependencies with Poetry
+        run: |
+          cd data_processing/infraxclimate/scenariomip
+          poetry install
+
+      - name: Run Unit Tests
+        run: |
+          cd data_processing/infraxclimate/scenariomip
+          poetry run pytest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Builds data_processing/infraxclimate/scenariomip
+      run: docker build --tag data_processing/infraxclimate/scenariomip:$(date +%s) ./data_processing/infraxclimate/scenariomip
+  
+  

@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.main.handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          # Dynamically retrieve the secret from AWS Secrets Manager using the account ID
+          DATABASE_URL: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:my-database-credentials
+          
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - SecretsManagerReadPolicy:
+            SecretName: my-database-credentials
+      Events:
+        ApiGateway:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: get
