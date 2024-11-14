@@ -161,8 +161,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-#AWS SAM Build
+#AWS SAM Build files to ignore
 .aws-sam/
+out.yml
+samconfig.toml
+
 
 .vscode
 *.ipynb
+

@@ -10,13 +10,15 @@ from geojson_pydantic.features import Feature
 from geojson_pydantic.geometries import Polygon
 from fastapi import HTTPException
 
-import app.v1.schemas as schemas
+from . import schemas
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+SSM = boto3.client("ssm")
 
 def create_bbox(bboxes: List[schemas.BoundingBox]) -> FeatureCollection:
     """Creates GeoJSON spec. object from list of Bounding Boxes
@@ -164,3 +166,6 @@ def check_data_size(data: str, threshold: float) -> bool:
         return True
     else:
         return False
+
+def get_parameter(name):
+    return SSM.get_parameter(Name=name, WithDecryption=True)['Parameter']['Value']

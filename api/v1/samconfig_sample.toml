@@ -1,0 +1,20 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "uw-crl-api-stack"
+s3_bucket = "my-bucket"
+region = "us-east-2"
+capabilities = "CAPABILITY_IAM"
+no_fail_on_empty_changeset = true
+template_file = "out.yml"
+parameter_overrides = """
+    SecurityGroupId=sg-123
+    SubnetIds="subnet-123"
+    S3BUCKET=uw-climaterisklab
+    S3BASEPREFIXUSERDOWNLOADS=path/to/user/downloads/
+    DATASIZERETURNLIMITMB=5.9
+    SSMPGDBNAME=/ssm/param/name
+    SSMPGUSER=/ssm/param/name
+    SSMPGPASSWORD=/ssm/param/name
+    SSMPGHOST=/ssm/param/name
+"""

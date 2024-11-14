@@ -1,13 +1,13 @@
-name: api/ CI-CD
+name: api/v1/ CI-CD
 
 on:
   push:
     branches: [ "main" ]
-    paths: [ "api/**" ]
+    paths: [ "api/v1/**" ]
   
   pull_request:
     branches: [ "main" ]
-    paths: [ "api/**" ]
+    paths: [ "api/v1/**" ]
 
 jobs:
 
@@ -29,10 +29,10 @@ jobs:
 
       - name: Install Dependencies with Poetry
         run: |
-          cd api
+          cd api/v1
           poetry install
 
       - name: Run Unit Tests
         run: |
-          cd api
+          cd api/v1
           poetry run pytest

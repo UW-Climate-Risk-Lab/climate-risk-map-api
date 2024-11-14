@@ -6,7 +6,7 @@ import os
 from fastapi import APIRouter, HTTPException, Query
 from psycopg2 import sql
 
-from .. import database
+from . import database
 
 from . import config
 from . import schemas
@@ -16,8 +16,8 @@ from .query import GetDataQueryBuilder
 
 router = APIRouter()
 
-S3_BUCKET = os.environ["S3_BUCKET"]
-S3_BASE_PREFIX_USER_DOWNLOADS = os.environ["S3_BASE_PREFIX_USER_DOWNLOADS"]
+S3_BUCKET = str(os.environ["S3_BUCKET"])
+S3_PREFIX_USER_DOWNLOADS = str(os.environ["S3_BASE_PREFIX_USER_DOWNLOADS"])
 DATA_SIZE_RETURN_LIMIT_MB=float(os.environ["DATA_SIZE_RETURN_LIMIT_MB"])
 
 # Configure logging
@@ -128,7 +128,7 @@ def get_data(
     if utils.check_data_size(data=json.dumps(result), threshold=DATA_SIZE_RETURN_LIMIT_MB):
 
         presigned_url = utils.upload_to_s3_and_get_presigned_url(
-            bucket_name=S3_BUCKET, prefix=S3_BASE_PREFIX_USER_DOWNLOADS, data=result
+            bucket_name=S3_BUCKET, prefix=S3_PREFIX_USER_DOWNLOADS, data=result
         )
         return {"presigned_url": presigned_url}
 

@@ -35,7 +35,7 @@ A repository for a data API that allows access to physical asset and climate ris
 
    ```bash
    git clone https://github.com/yourusername/climate-risk-map-api.git
-   cd climate-risk-map-api
+   cd climate-risk-map-api/api
    ```
 
 2. **Install dependencies using Poetry**

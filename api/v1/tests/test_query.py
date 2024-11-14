@@ -4,7 +4,7 @@ import pytest
 from geojson_pydantic import FeatureCollection
 from psycopg2.sql import SQL, Composed, Identifier
 
-from app.v1 import query, schemas
+from ..app import query, schemas
 
 TEST_BBOX = {
     "type": "FeatureCollection",

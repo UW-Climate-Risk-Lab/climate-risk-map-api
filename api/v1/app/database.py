@@ -9,13 +9,22 @@ from psycopg2 import sql
 import os
 import logging
 
+
 from typing import Tuple, Any
+
+from . import utils
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Stored in SSM for security
+PG_DBNAME = utils.get_parameter(os.environ["SSM_PG_DBNAME"])
+PG_USER = utils.get_parameter(os.environ["SSM_PG_USER"])
+PG_PASSWORD = utils.get_parameter(os.environ["SSM_PG_PASSWORD"])
+PG_HOST = utils.get_parameter(os.environ["SSM_PG_HOST"])
 
 def get_database_conn() -> connection:
     """Gets Postgres database connection
@@ -30,10 +39,10 @@ def get_database_conn() -> connection:
     while tries < 3:
         try:
             conn = pg.connect(
-                database=os.environ["PG_DBNAME"],
-                user=os.environ["PG_USER"],
-                password=os.environ["PG_PASSWORD"],
-                host=os.environ["PG_HOST"],
+                database=PG_DBNAME,
+                user=PG_USER,
+                password=PG_PASSWORD,
+                host=PG_HOST,
             )
             return conn
         except Exception as e:
