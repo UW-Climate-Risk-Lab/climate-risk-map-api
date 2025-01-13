@@ -23,21 +23,21 @@ Parameters:
     Type: Number
     Description: Max data in megabytes that can be returned. If above threshold, will return S3 URL
 
-  SSMPGDBNAME: 
+  PGDBNAME: 
     Type: String
-    Description: Parameter store path to postgres database name
+    Description: SSM Parameter store path to postgres database name
 
-  SSMPGUSER: 
+  PGUSER: 
     Type: String
-    Description: Parameter store path to postgres database user
+    Description: SSM Parameter store path to postgres database user
 
-  SSMPGPASSWORD: 
+  PGPASSWORD: 
     Type: String
-    Description: Parameter store path to postgres database user password
+    Description: SSM Parameter store path to postgres database user password
 
-  SSMPGHOST: 
+  PGHOST: 
     Type: String
-    Description: Parameter store path to postgres database host
+    Description: SSM Parameter store path to postgres database host
 
 Resources:
   UWCRLApiv1:
@@ -58,10 +58,10 @@ Resources:
           DATA_SIZE_RETURN_LIMIT_MB: !Ref DATASIZERETURNLIMITMB
           S3_BUCKET: !Ref S3BUCKET
           S3_BASE_PREFIX_USER_DOWNLOADS: !Ref S3BASEPREFIXUSERDOWNLOADS
-          SSM_PG_DBNAME: !Ref SSMPGDBNAME
-          SSM_PG_USER: !Ref SSMPGUSER
-          SSM_PG_PASSWORD: !Ref SSMPGPASSWORD
-          SSM_PG_HOST: !Ref SSMPGHOST
+          PGDBNAME: !Ref PGDBNAME
+          PGUSER: !Ref PGUSER
+          PGPASSWORD: !Ref PGPASSWORD
+          PGHOST: !Ref PGHOST
       EventInvokeConfig:
         MaximumEventAgeInSeconds: 21600
         MaximumRetryAttempts: 2
@@ -87,7 +87,8 @@ Resources:
               Effect: Allow
               Action:
                 - ssm:GetParameter
-              Resource: '*'
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/api/v1/*"
             - Sid: CloudWatchLogsPolicy
               Effect: Allow
               Action:
@@ -103,6 +104,7 @@ Resources:
         ApiEvent:
           Type: Api
           Properties:
+            RestApiId: !Ref CRLapiGateway
             Path: /{proxy+}
             Method: ANY
       RuntimeManagementConfig:
@@ -111,4 +113,23 @@ Resources:
         Type: AWS::Serverless::Api
         Properties:
             StageName: v1-dev
-            OpenApiVersion: '3.0.0'
+            OpenApiVersion: '3.1.0'
+            DefinitionBody:
+              swagger: "2.0"
+              info:
+                title: "UW CRL API"
+                version: "1.0"
+              paths:
+                /{proxy+}:
+                  x-amazon-apigateway-any-method:
+                    parameters:
+                      - name: proxy
+                        in: path
+                        required: true
+                        type: string
+                    x-amazon-apigateway-integration:
+                      uri:
+                        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UWCRLApiv1.Arn}/invocations
+                      passthroughBehavior: when_no_match
+                      httpMethod: POST
+                      type: aws_proxy

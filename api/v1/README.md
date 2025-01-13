@@ -90,14 +90,14 @@ Retrieve data based on various parameters.
 - **Endpoint**
 
   ```
-  GET /api/v1/data/{response_format}/{osm_category}/{osm_type}/
+  GET /api/v1/data/{format}/{osm_category}/{osm_type}/
   ```
 
 - **Parameters**
 
   | Name               | Type     | Description                                                   |
   | ------------------ | -------- | ------------------------------------------------------------- |
-  | `response_format`  | String   | Format of the response (`geojson` or `csv`).                 |
+  | `format`  | String   | Format of the response (`geojson` or `csv`).                 |
   | `osm_category`         | String   | OSM Category to retrieve data from.                           |
   | `osm_type`         | String   | OSM Type to filter on.                                        |
   | `osm_subtypes`     | List&lt;String&gt; | (Optional) OSM Subtypes to filter on.                      |
@@ -167,6 +167,24 @@ Retrieve metadata for a specific climate variable and SSP.
       "metadata": { ... }
   }
   ```
+
+## Deployment
+
+Fill out a `samconfig.toml` based on `samconfig_sample.toml` and then run the following...
+
+```bash
+cd api/v1
+
+sam build
+sam package --s3-bucket my-bucket --output-template-file out.yml --region us-east-2
+sam deploy
+```
+
+If needed, to delete the stack
+
+sam delete --stack-name my-stack-name
+
+
 
 ## Testing
 

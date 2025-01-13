@@ -27,9 +27,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@router.get("/data/{response_format}/{osm_category}/{osm_type}/{osm_subtype}/")
+@router.get("/data/{format}/{osm_category}/{osm_type}/{osm_subtype}/")
 def get_data(
-    response_format: str,  # TODO: configure to allow CSV or Geojson
+    format: str,  # TODO: configure to allow CSV or Geojson
     osm_category: str,
     osm_type: str,
     osm_subtype: str,
@@ -54,9 +54,9 @@ def get_data(
         climate_decade = (climate_decade,)
 
     # TODO: Add CSV response format
-    if response_format.lower() not in ["geojson"]:
+    if format.lower() not in ["geojson"]:
         raise HTTPException(
-            status_code=422, detail=f"{response_format} response format not supported"
+            status_code=422, detail=f"{format} response format not supported"
         )
 
     if bbox:
@@ -135,7 +135,7 @@ def get_data(
     return result
 
 
-@router.get("/climate-metadata/{climate_variable}/{ssp}")
+@router.get("/climate-metadata/{climate_variable}/{ssp}/")
 def get_climate_metadata(climate_variable: str, ssp: str) -> Dict:
     """Returns climate metadata JSON blob for given climate_variable and ssp
 
