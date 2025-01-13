@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: An AWS Serverless Application Model template for the UW Climate Risk Lab API.
+
+Parameters:
+  SecurityGroupId:
+    Type: String
+    Description: Security Group ID for Lambda function to access the VPC
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: List of Subnet IDs for the Lambda function to run in
+
+  S3BUCKET:
+    Type: String
+    Description: Name of the S3 bucket used for storing files
+
+  S3BASEPREFIXUSERDOWNLOADS:
+    Type: String
+    Description: Prefix within the S3 bucket for user-specific downloads
+  
+  DATASIZERETURNLIMITMB:
+    Type: Number
+    Description: Max data in megabytes that can be returned. If above threshold, will return S3 URL
+
+  PGDBNAME: 
+    Type: String
+    Description: SSM Parameter store path to postgres database name
+
+  PGUSER: 
+    Type: String
+    Description: SSM Parameter store path to postgres database user
+
+  PGPASSWORD: 
+    Type: String
+    Description: SSM Parameter store path to postgres database user password
+
+  PGHOST: 
+    Type: String
+    Description: SSM Parameter store path to postgres database host
+
+Resources:
+  UWCRLApiv1:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Description: UW CRL API v1
+      MemorySize: 3008
+      Timeout: 300
+      Handler: app.main.handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 512
+      Environment:
+        Variables:
+          DATA_SIZE_RETURN_LIMIT_MB: !Ref DATASIZERETURNLIMITMB
+          S3_BUCKET: !Ref S3BUCKET
+          S3_BASE_PREFIX_USER_DOWNLOADS: !Ref S3BASEPREFIXUSERDOWNLOADS
+          PGDBNAME: !Ref PGDBNAME
+          PGUSER: !Ref PGUSER
+          PGPASSWORD: !Ref PGPASSWORD
+          PGHOST: !Ref PGHOST
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 21600
+        MaximumRetryAttempts: 2
+      PackageType: Zip
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: S3AccessPolicy
+              Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${S3BUCKET}/*"
+            - Sid: VpcNetworkingPolicy
+              Effect: Allow
+              Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DeleteNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+              Resource: '*'
+            - Sid: SSMAccessPolicy
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/api/v1/*"
+            - Sid: CloudWatchLogsPolicy
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CRLapiGateway
+            Path: /{proxy+}
+            Method: ANY
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+  CRLapiGateway:
+        Type: AWS::Serverless::Api
+        Properties:
+            StageName: v1-dev
+            OpenApiVersion: '3.1.0'
+            DefinitionBody:
+              swagger: "2.0"
+              info:
+                title: "UW CRL API"
+                version: "1.0"
+              paths:
+                /{proxy+}:
+                  x-amazon-apigateway-any-method:
+                    parameters:
+                      - name: proxy
+                        in: path
+                        required: true
+                        type: string
+                    x-amazon-apigateway-integration:
+                      uri:
+                        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UWCRLApiv1.Arn}/invocations
+                      passthroughBehavior: when_no_match
+                      httpMethod: POST
+                      type: aws_proxy

@@ -6,7 +6,7 @@ import os
 from fastapi import APIRouter, HTTPException, Query
 from psycopg2 import sql
 
-from .. import database
+from . import database
 
 from . import config
 from . import schemas
@@ -16,8 +16,8 @@ from .query import GetDataQueryBuilder
 
 router = APIRouter()
 
-S3_BUCKET = os.environ["S3_BUCKET"]
-S3_BASE_PREFIX_USER_DOWNLOADS = os.environ["S3_BASE_PREFIX_USER_DOWNLOADS"]
+S3_BUCKET = str(os.environ["S3_BUCKET"])
+S3_PREFIX_USER_DOWNLOADS = str(os.environ["S3_BASE_PREFIX_USER_DOWNLOADS"])
 DATA_SIZE_RETURN_LIMIT_MB=float(os.environ["DATA_SIZE_RETURN_LIMIT_MB"])
 
 # Configure logging
@@ -27,9 +27,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@router.get("/data/{response_format}/{osm_category}/{osm_type}/{osm_subtype}/")
+@router.get("/data/{format}/{osm_category}/{osm_type}/{osm_subtype}/")
 def get_data(
-    response_format: str,  # TODO: configure to allow CSV or Geojson
+    format: str,  # TODO: configure to allow CSV or Geojson
     osm_category: str,
     osm_type: str,
     osm_subtype: str,
@@ -54,9 +54,9 @@ def get_data(
         climate_decade = (climate_decade,)
 
     # TODO: Add CSV response format
-    if response_format.lower() not in ["geojson"]:
+    if format.lower() not in ["geojson"]:
         raise HTTPException(
-            status_code=422, detail=f"{response_format} response format not supported"
+            status_code=422, detail=f"{format} response format not supported"
         )
 
     if bbox:
@@ -128,14 +128,14 @@ def get_data(
     if utils.check_data_size(data=json.dumps(result), threshold=DATA_SIZE_RETURN_LIMIT_MB):
 
         presigned_url = utils.upload_to_s3_and_get_presigned_url(
-            bucket_name=S3_BUCKET, prefix=S3_BASE_PREFIX_USER_DOWNLOADS, data=result
+            bucket_name=S3_BUCKET, prefix=S3_PREFIX_USER_DOWNLOADS, data=result
         )
         return {"presigned_url": presigned_url}
 
     return result
 
 
-@router.get("/climate-metadata/{climate_variable}/{ssp}")
+@router.get("/climate-metadata/{climate_variable}/{ssp}/")
 def get_climate_metadata(climate_variable: str, ssp: str) -> Dict:
     """Returns climate metadata JSON blob for given climate_variable and ssp
 
