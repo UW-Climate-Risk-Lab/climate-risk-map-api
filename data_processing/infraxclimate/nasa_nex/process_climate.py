@@ -104,9 +104,6 @@ def reduce_model_stats(da: xr.DataArray) -> xr.Dataset:
     max_val = da.max(dim="model")
     q1 = da.quantile(0.25, dim="model").drop("quantile")
     q3 = da.quantile(0.75, dim="model").drop("quantile")
-    quartiles = da.chunk({"model": -1}).quantile(
-        [0.25, 0.75], dim="model"
-    )
     sample_size = len(
         da.attrs.get("ensemble_members", [])
     )  # Number of climate models used when calculating stats
@@ -190,7 +187,7 @@ def load_data(
         data.append(_da)
 
         logger.info(f"{model_name} loaded")
-
+    
     da = xr.combine_nested(data, concat_dim=["model"])
     da = da.assign_attrs(ensemble_members=da.model.values)
 

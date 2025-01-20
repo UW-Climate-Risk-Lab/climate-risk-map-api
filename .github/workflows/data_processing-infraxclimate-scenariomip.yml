@@ -3,11 +3,11 @@ name: data_processing/infraxclimate/scenariomip CI-CD
 on:
   push:
     branches: [ "main" ]
-    paths: [ "data_processing/infraxclimate/scenariomip/**" ]
+    paths: [ "data_processing/infraxclimate/nasa_nex/**" ]
   
   pull_request:
     branches: [ "main" ]
-    paths: [ "data_processing/infraxclimate/scenariomip/**" ]
+    paths: [ "data_processing/infraxclimate/nasa_nex/**" ]
 
 jobs:
 
@@ -29,12 +29,12 @@ jobs:
 
       - name: Install Dependencies with Poetry
         run: |
-          cd data_processing/infraxclimate/scenariomip
+          cd data_processing/infraxclimate/nasa_nex
           poetry install
 
       - name: Run Unit Tests
         run: |
-          cd data_processing/infraxclimate/scenariomip
+          cd data_processing/infraxclimate/nasa_nex
           poetry run pytest
 
   build:

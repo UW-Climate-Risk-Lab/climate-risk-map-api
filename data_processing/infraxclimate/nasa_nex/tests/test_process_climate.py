@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 import os
 
-from nasa_nex.process_climate import decade_month_calc, climate_calc, main
+from ..process_climate import decade_month_calc, climate_calc, main
 
 
 # Test for the decade_month_calc function

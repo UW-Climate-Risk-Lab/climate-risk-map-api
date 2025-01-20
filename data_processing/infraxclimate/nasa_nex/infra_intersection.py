@@ -34,7 +34,6 @@ def convert_ds_to_df(ds: xr.Dataset) -> pd.DataFrame:
         da (xr.DataArray): Datarray
     """
 
-
     df = (
         ds.stack(id_dim=(GEOMETRY_COLUMN, "decade_month"))
         .to_dataframe()
@@ -345,9 +344,6 @@ def main(
     )
     infra_df[GEOMETRY_COLUMN] = infra_df[GEOMETRY_COLUMN].apply(wkt.loads)
     infra_gdf = gpd.GeoDataFrame(infra_df, geometry=GEOMETRY_COLUMN, crs=crs)
-
-    #TODO: MUST REMOVE FOR FULL RUN!!!
-    infra_gdf = infra_gdf.sample(100)
 
     logger.info("Starting Zonal Aggregation...")
     df = zonal_aggregation(
