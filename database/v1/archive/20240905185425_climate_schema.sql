@@ -7,7 +7,7 @@ CREATE SCHEMA climate;
 
 ALTER SCHEMA climate OWNER TO climate_user;
 
-GRANT CONNECT ON DATABASE pgosm_flex_washington TO climate_user;
+GRANT CONNECT ON DATABASE washington TO climate_user;
 
 SET ROLE climate_user;
 

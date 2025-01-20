@@ -1,6 +1,8 @@
 import io
 import json
 import logging
+import time
+import random
 from typing import Dict
 
 import pandas as pd
@@ -10,68 +12,30 @@ from psycopg2 import sql
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-
-SCENARIOMIP_VARIABLE_TABLE = "scenariomip_variables"
-SCENARIOMIP_TABLE = "scenariomip"
 CLIMATE_SCHEMA = "climate"
 
-INSERT_SCENARIOMIP_VARIABLES = sql.SQL(
-    """
-INSERT INTO {climate_schema}.{table} (variable, ssp, metadata) 
-VALUES(%s, %s, %s) 
-ON CONFLICT DO NOTHING
-"""
-).format(
-    climate_schema=sql.Identifier(CLIMATE_SCHEMA),
-    table=sql.Identifier(SCENARIOMIP_VARIABLE_TABLE),
-)
+TEMP_TABLE_COLUMNS = [
+    "osm_id",
+    "month",
+    "decade",
+    "ssp",
+    "value_mean",
+    "value_median",
+    "value_stddev",
+    "value_min",
+    "value_max",
+    "value_q1",
+    "value_q3",
+    "metadata",
+]
 
-CREATE_SCENARIOMIP_TEMP_TABLE = sql.SQL(
-    """
-CREATE TEMP TABLE scenariomip_temp (
-    osm_id BIGINT,
-    month INT,
-    decade INT,
-    variable_name TEXT,
-    ssp int,
-    value FLOAT
-);
-"""
-)
-
-TEMP_TABLE_COLUMNS = ["osm_id", "month", "decade", "variable_name", "ssp", "value"]
-
-COPY_SCENARIOMIP_TEMP = sql.SQL(
-    """
-COPY scenariomip_temp
-FROM STDIN WITH (FORMAT csv, HEADER false, DELIMITER ',')
-"""
-)
-
-DROP_SCENARIOMIP_TEMP = sql.SQL(
-    """
-    DROP TABLE scenariomip_temp;
-    """
-)
-
-INSERT_SCENARIOMIP = sql.SQL(
-    """
-INSERT INTO {climate_schema}.{scenariomip} (osm_id, month, decade, variable_id, value)
-        SELECT temp.osm_id, temp.month, temp.decade, v.id, temp.value
-        FROM scenariomip_temp temp
-        INNER JOIN {climate_schema}.{scenariomip_variables} v 
-        ON temp.variable_name = v.variable AND temp.ssp = v.ssp
-ON CONFLICT DO NOTHING
-"""
-).format(
-    scenariomip_variables=sql.Identifier(SCENARIOMIP_VARIABLE_TABLE),
-    scenariomip=sql.Identifier(SCENARIOMIP_TABLE),
-    climate_schema=sql.Identifier(CLIMATE_SCHEMA),
-)
-
+def generate_random_table_id():
+    timestamp = int(time.time())  # Milliseconds since epoch
+    random_part = random.randint(1000, 9999)  # Random 4-digit number
+    return f"{timestamp}{random_part}"
 
 def main(
-    df_scenariomip: pd.DataFrame,
+    df: pd.DataFrame,
     ssp: int,
     climate_variable: str,
     conn: pg.extensions.connection,
@@ -79,28 +43,74 @@ def main(
 ):
 
     # Adds columns needed for temp table
-    df_scenariomip["ssp"] = ssp
-    df_scenariomip["variable_name"] = climate_variable
+    df["ssp"] = ssp
+    data_load_table = f"nasa_nex_{climate_variable}"
+
+    # Random ID needed if multiple laod process running at once
+    random_table_id = generate_random_table_id()
+    temp_table_name = f"nasa_nex_temp_{random_table_id}"
 
     # Reads data into memory
     sio = io.StringIO()
-    sio.write(df_scenariomip[TEMP_TABLE_COLUMNS].to_csv(index=False, header=False))
+    sio.write(df[TEMP_TABLE_COLUMNS].to_csv(index=False, header=False))
     sio.seek(0)
+
+    create_nasa_nex_temp_table = sql.SQL(
+    """
+    CREATE TEMP TABLE {temp_table} (
+        osm_id BIGINT,
+        month INT,
+        decade INT,
+        ssp int,
+        value_mean FLOAT NOT NULL,
+        value_median FLOAT NOT NULL,
+        value_stddev FLOAT NOT NULL,
+        value_min FLOAT NOT NULL,
+        value_max FLOAT NOT NULL,
+        value_q1 FLOAT NOT NULL,
+        value_q3 FLOAT NOT NULL,
+        metadata JSONB
+    );
+    """
+    ).format(temp_table=sql.Identifier(temp_table_name))
+
+    copy_nasa_nex_temp = sql.SQL(
+    """
+    COPY {temp_table}
+    FROM STDIN WITH (FORMAT csv, HEADER false, DELIMITER ',')
+    """
+    ).format(temp_table=sql.Identifier(temp_table_name))
+
+    drop_nasa_nex_temp = sql.SQL(
+    """
+    DROP TABLE {temp_table};
+    """
+    ).format(temp_table=sql.Identifier(temp_table_name))
+
+    insert_nasa_nex = sql.SQL(
+    """
+    INSERT INTO {climate_schema}.{table} (osm_id, month, decade, ssp, value_mean, value_median, value_stddev, value_min, value_max, value_q1, value_q3, metadata)
+            SELECT temp.osm_id, temp.month, temp.decade, temp.ssp, temp.value_mean, temp.value_median, temp.value_stddev, temp.value_min, temp.value_max, temp.value_q1, temp.value_q3, temp.metadata 
+            FROM {temp_table} temp
+    ON CONFLICT DO NOTHING
+    """
+    ).format(
+        table=sql.Identifier(data_load_table),
+        temp_table=sql.Identifier(temp_table_name),
+        climate_schema=sql.Identifier(CLIMATE_SCHEMA),
+    )
 
     # Executes database commands
     with conn.cursor() as cur:
-        cur.execute(
-            INSERT_SCENARIOMIP_VARIABLES, (climate_variable, ssp, json.dumps(metadata))
-        )
-        logger.info("ScenariMIP Variables and metadata inserted")
 
-        cur.execute(CREATE_SCENARIOMIP_TEMP_TABLE)
-        cur.copy_expert(COPY_SCENARIOMIP_TEMP, sio)
-        logger.info("ScenarioMIP Temp Table Loaded")
+        cur.execute(create_nasa_nex_temp_table)
+        cur.copy_expert(copy_nasa_nex_temp, sio)
+        logger.info(f"{climate_variable} Temp Table Loaded")
 
-        cur.execute(INSERT_SCENARIOMIP)
-        logger.info("ScenarioMIP Table Loaded")
+        cur.execute(insert_nasa_nex)
+        logger.info(f"{climate_variable} Table Loaded")
 
         # Cleanup for next pipeline run
-        cur.execute(DROP_SCENARIOMIP_TEMP)
+        cur.execute(drop_nasa_nex_temp)
+
     conn.commit()

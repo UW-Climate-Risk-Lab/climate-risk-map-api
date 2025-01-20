@@ -1,20 +1,54 @@
 import logging
-import os
 from pathlib import Path
+import re
 
 import rioxarray
 import xarray as xr
+import fsspec
+import s3fs
 
-import scenariomip.utils as utils
+import constants
 
-from typing import List
+from typing import List, Set
 
 logger = logging.getLogger(__name__)
 
-TIME_AGG_METHODS = ["decade_month"]
+# Add constants for validation. Models used must have all available scenarios and all available years
+HISTORICAL_YEARS = set(range(1950, 2015))  # 1950-2014
+FUTURE_YEARS = set(range(2015, 2101))  # 2015-2100
 
 
-def decade_month_calc(ds: xr.Dataset, time_dim: str) -> xr.Dataset:
+def validate_model_ssp(fs: s3fs.S3FileSystem, model_path: str, ssp: str) -> bool:
+    """Check if model has required SSP. SSP may equal 'historical'"""
+
+    if fs.exists(f"{model_path}/ssp{ssp}"):
+        return True
+
+    # Catches 'historical'
+    if fs.exists(f"{model_path}/{ssp}"):
+        return True
+    
+    return False
+
+
+def validate_model_years(fs: s3fs.S3FileSystem, zarr_stores: List[str]) -> bool:
+    """Check if model has all required years"""
+    available_years = set()
+
+    for store in zarr_stores:
+        # Extract year from zarr store path
+        year_match = re.search(r"_(\d{4})\.zarr$", store)
+        if year_match:
+            available_years.add(int(year_match.group(1)))
+
+    required_years = (HISTORICAL_YEARS == available_years) or (
+        FUTURE_YEARS == available_years
+    )
+
+    return required_years
+
+
+def decade_month_calc(ds: xr.Dataset, time_dim: str = "time") -> xr.Dataset:
     """Calculates the climatological mean by decade and month.
 
     This function computes the decade-by-decade average for each month in the provided dataset.
@@ -51,59 +85,140 @@ def decade_month_calc(ds: xr.Dataset, time_dim: str) -> xr.Dataset:
     return ds
 
 
-def climate_calc(ds: xr.Dataset, time_dim: str, time_agg_method: str) -> xr.Dataset:
-    """Runs climate calculations on xarray dataset. Modifys dataset in place"""
-    if time_agg_method not in TIME_AGG_METHODS:
-        raise ValueError(f"{time_agg_method} time aggregation method not implemented")
+def reduce_model_stats(da: xr.DataArray) -> xr.Dataset:
+    """
+    Reduces a DataArray by computing statistical metrics (mean, median, stddev, etc.)
+    across the 'model' dimension. This creates the climate ensemble mean
 
-    if time_agg_method == "decade_month":
-        ds = decade_month_calc(ds=ds, time_dim=time_dim)
+    Args:
+        da (xr.DataArray): Input DataArray with a 'model' dimension.
 
-    return ds
+    Returns:
+        xr.Dataset: Dataset containing statistical metrics as variables.
+    """
+    # Compute metrics
+    mean = da.mean(dim="model")
+    median = da.median(dim="model")
+    stddev = da.std(dim="model")
+    min_val = da.min(dim="model")
+    max_val = da.max(dim="model")
+    q1 = da.quantile(0.25, dim="model").drop("quantile")
+    q3 = da.quantile(0.75, dim="model").drop("quantile")
+    quartiles = da.chunk({"model": -1}).quantile(
+        [0.25, 0.75], dim="model"
+    )
+    sample_size = len(
+        da.attrs.get("ensemble_members", [])
+    )  # Number of climate models used when calculating stats
 
-def read_data(file_directory: str, xarray_engine: str) -> xr.Dataset:
+    # Create a new Dataset with the computed statistics
+    stats_ds = xr.Dataset(
+        {
+            "value_mean": mean,
+            "value_median": median,
+            "value_stddev": stddev,
+            "value_min": min_val,
+            "value_max": max_val,
+            "value_q1": q1,#quartiles.sel(quantile=0.25).drop("quantile"),
+            "value_q3": q3,#quartiles.sel(quantile=0.75).drop("quantile"),
+        },
+        attrs=da.attrs,  # Copy original attributes, if any
+    )
+    stats_ds.attrs["sample_size"] = sample_size
+    return stats_ds
+
+
+def load_data(
+    s3_bucket: str,
+    s3_prefix: str,
+    ssp: str,
+    climate_variable: str,
+    bbox: dict,
+) -> xr.DataArray:
+    """Reads all valid Zarr stores in the given S3 directory"""
     data = []
-    for file in os.listdir(file_directory):
-        path = Path(file_directory) / file
-        _ds = xr.open_dataset(
-            filename_or_obj=str(path),
-            engine=xarray_engine,
-            decode_times=True,
-            use_cftime=True,
-            decode_coords=True,
-            mask_and_scale=True,
+
+    fs = s3fs.S3FileSystem()
+    pattern = f"s3://{s3_bucket}/{s3_prefix}/*"
+    model_paths = fs.glob(pattern)
+
+    # TODO: REMOVE LIST SLICE FOR FULL RUN!!!
+    for model_path in model_paths[:2]:
+        model_name = model_path.rstrip("/").split("/")[-1]
+        logger.info(f"Validating model: {model_name}")
+
+        # Check if model has all required SSPs
+        if not validate_model_ssp(fs, model_path, ssp):
+            logger.warning(f"Skipping {model_name}: missing required SSP")
+            continue
+
+        # Get all zarr stores for this model and SSP
+        model_pattern = f"{model_path}/ssp{ssp}/*/{climate_variable}_day_*.zarr"
+        zarr_stores = fs.glob(model_pattern)
+
+        # Check if model has all required years
+        if not validate_model_years(fs, zarr_stores):
+            logger.warning(f"Skipping {model_name}: missing required years")
+            continue
+
+        # Convert to full S3 URIs
+        zarr_uris = [f"s3://{path}" for path in zarr_stores]
+
+        logger.info(f"Loading validated model: {model_name}")
+        _ds = xr.open_mfdataset(
+            zarr_uris,
+            engine="zarr",
+            combine="by_coords",
+            parallel=True,
+            preprocess=decade_month_calc,
         )
-        data.append(_ds)
-    
-    # Dropping conflicts because the creation_date between
-    # datasets was slightly different (a few mintues apart).
-    # All other attributes should be the same.
-    # TODO: Better handle conflicting attribute values
-    ds = xr.merge(data, combine_attrs="drop_conflicts")
-    return ds
+        _da = _ds[climate_variable]
+        _da = _da.assign_coords({constants.X_DIM: (((_da[constants.X_DIM] + 180) % 360) - 180)})
+        _da = _da.sortby(constants.X_DIM)
+
+        # Bbox currently only in -180-180 lon
+        # TODO: Add better error and case handling
+        if bbox:
+            _da = _da.sel(
+                {
+                    constants.Y_DIM: slice(bbox["min_lat"], bbox["max_lat"]),
+                    constants.X_DIM: slice(bbox["min_lon"], bbox["max_lon"]),
+                },
+            )
+        _da = _da.assign_coords(model=model_name)
+        _da = _da.expand_dims("model")
+        data.append(_da)
+
+        logger.info(f"{model_name} loaded")
+
+    da = xr.combine_nested(data, concat_dim=["model"])
+    da = da.assign_attrs(ensemble_members=da.model.values)
+
+    chunks = {
+        "decade_month": 12,  # All in one chunk since it's usually small
+        constants.X_DIM: "auto",
+        constants.Y_DIM: "auto",
+        "model": -1  # All models in one chunk for ensemble calculations
+    }
+
+    da = da.chunk(chunks)
+
+    return da
+
 
 def main(
-    file_directory: str,
-    xarray_engine: str,
+    ssp: str,
+    s3_bucket: str,
+    s3_prefix: str,
     climate_variable: str,
     crs: str,
-    x_dim: str,
-    y_dim: str,
-    convert_360_lon: bool,
     bbox: dict,
-    time_dim: str,
-    climatology_mean_method: str,
-    derived_metadata_key: str,
 ) -> xr.Dataset:
     """Processes climate data
 
     Args:
         file_directory (str): Directory to open files from
-        xarray_engine (str): Engine for Xarray to open files
         crs (str): Coordinate Refernce System of climate data
-        x_dim (str): The X coordinate dimension name (typically lon or longitude)
-        y_dim (str): The Y coordinate dimension name (typically lat or latitude)
-        convert_360_lon (bool): If True, converts 0-360 lon values to -180-180
         bbox (dict): Dict with keys (min_lon, min_lat, max_lon, max_lat) to filter data
         time_dim (str): The name of the time dimension in the dataset
         climatology_mean_method (str): The method by which to average climate variable over time.
@@ -113,47 +228,26 @@ def main(
         xr.Dataset: Xarray dataset of processed climate data
     """
 
-    # For the initial dataset (burntFractionAll CESM2), each SSP
-    # contained 2 files, with 2 chunks of years. These can be simply merged
-    ds = read_data(file_directory=file_directory, xarray_engine=xarray_engine)
+    da = load_data(
+        s3_bucket=s3_bucket,
+        s3_prefix=s3_prefix,
+        ssp=ssp,
+        climate_variable=climate_variable,
+        bbox=bbox,
+    )
+
+    ds = reduce_model_stats(da)
 
     logger.info("Xarray dataset created")
 
-    if convert_360_lon:
-        ds = ds.assign_coords({x_dim: (((ds[x_dim] + 180) % 360) - 180)})
-        ds = ds.sortby(x_dim)
-
-        # Bbox currently only in -180-180 lon
-        # TODO: Add better error and case handling
-        if bbox:
-            ds = ds.sel(
-                {
-                    y_dim: slice(bbox["min_lat"], bbox["max_lat"]),
-                    x_dim: slice(bbox["min_lon"], bbox["max_lon"]),
-                },
-            )
-
     # Sets the CRS based on the provided CRS
     ds.rio.write_crs(crs, inplace=True)
-    ds.rio.set_spatial_dims(x_dim=x_dim, y_dim=y_dim, inplace=True)
+    ds.rio.set_spatial_dims(x_dim=constants.X_DIM, y_dim=constants.Y_DIM, inplace=True)
     ds.rio.write_coordinate_system(inplace=True)
 
-    ds = climate_calc(ds=ds, time_dim=time_dim, time_agg_method=climatology_mean_method)
+    
 
-    metadata = utils.create_metadata(
-        ds=ds,
-        derived_metadata_key=derived_metadata_key,
-        climate_variable=climate_variable,
-    )
-
-    metadata[derived_metadata_key]["max_climate_variable_value"] = float(
-        ds[climate_variable].max()
-    )
-    metadata[derived_metadata_key]["min_climate_variable_value"] = float(
-        ds[climate_variable].min()
-    )
-
-    return ds, metadata
+    return ds
 
 
 if __name__ == "__main__":
