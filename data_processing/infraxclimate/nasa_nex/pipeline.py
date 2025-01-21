@@ -74,7 +74,6 @@ def main(
             generate_geotiff.main(
                 ds=ds,
                 output_dir=geotiff_tmpdir,
-                climate_variable=climate_variable,
                 state=state_bbox,
                 metadata=metadata,
             )

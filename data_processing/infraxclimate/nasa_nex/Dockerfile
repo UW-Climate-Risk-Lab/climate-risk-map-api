@@ -62,6 +62,8 @@ COPY run.py \
     generate_geotiff.py \
     utils.py \
     infra_intersection.py \
+    constants.py \
     infra_intersection_load.py ./
+    
 
-CMD ["/bin/bash", "-c", "source /app/.venv/bin/activate && python run.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source /app/.venv/bin/activate && exec python run.py \"$@\"", "--"]

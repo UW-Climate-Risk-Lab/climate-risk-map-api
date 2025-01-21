@@ -1,4 +1,4 @@
-# infraXclimate Engine ScenarioMIP Processing Pipeline
+# infraXclimate Engine NASA NEX Processing Pipeline
 
 This code provides a pipeline for processing climate data, generating GeoTIFF files & uploading them to an S3 bucket, zonally aggregating OSM features and loading the results into PostGIS. The pipeline consists of several scripts that handle different stages of the processing.
 
@@ -101,12 +101,12 @@ Building the image relies on a number of geospatial packages to install the pyth
 
 1. Build the Docker image:
 ```bash
-docker build --platform linux/amd64 -t backend/physical_asset/infraxclimate/scenariomip .
+docker build --platform linux/amd64 -t data_processing/infraxclimate/nasa_nex .
 ```
 
 2. Run the Docker container:
 ```bash
-docker run --env-file .env -v ~/.aws/credentials:/root/.aws/credentials:ro backend/physical_asset/infraxclimate/scenariomip
+docker run --env-file .env -v ~/.aws/credentials:/root/.aws/credentials:ro data_processing/infraxclimate/nasa_nex
 ```
 
 

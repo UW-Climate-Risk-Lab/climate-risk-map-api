@@ -22,7 +22,6 @@ def main(
     output_dir: str,
     state: str,
     metadata: Dict,
-    climate_variable: str,
     max_workers: int = 8,
 ) -> None:
     if not state:
@@ -32,7 +31,7 @@ def main(
     save_tasks = []
     for decade_month in ds["decade_month"].data:
         # For visualizing climate grid, we just use the mean
-        _da = ds[f"{climate_variable}_mean"].sel(decade_month=decade_month)
+        _da = ds[f"value_mean"].sel(decade_month=decade_month)
         file_name = f"{decade_month}-{state}.tif"
         output_path = Path(output_dir) / file_name
         save_tasks.append((_da, output_path))
@@ -48,10 +47,10 @@ def main(
 
     # Save metadata file
     metadata[constants.METADATA_KEY]["max_climate_variable_value"] = float(
-        ds[f"{climate_variable}_mean"].max()
+        ds[f"value_mean"].max()
     )
     metadata[constants.METADATA_KEY]["min_climate_variable_value"] = float(
-        ds[f"{climate_variable}_mean"].min()
+        ds[f"value_mean"].min()
     )
 
     metadata_file = f"metadata-{state}.json"
