@@ -10,14 +10,13 @@ import psycopg2
 import psycopg2.sql as sql
 from pandas.testing import assert_frame_equal
 
-from scenariomip.infra_intersection import (
-
+from ..infra_intersection import (
     zonal_aggregation,
     create_pgosm_flex_query,
     ID_COLUMN,
     GEOMETRY_COLUMN,
-    VALUE_COLUMN,
 )
+
 
 def test_create_pgosm_flex_query():
     osm_tables = ["infrastructure_point", "infrastructure_polygon"]
@@ -43,19 +42,29 @@ def sample_climate_data():
     data = np.array(
         [
             [
-                [10., 20., 30., 40., 50.],
-                [100., 200., 300., 400., 500.],
-                [1000., 2000., 3000., 4000., 5000.],
-                [8., 9., 10., 11., 12.],
-                [13., 14., 15., 16., 17.],
+                [10.0,   20.0,   30.0,    40.0,     50.0],
+                [100.0,  200.0,  300.0,   400.0,    500.0],
+                [1000.0, 2000.0, 3000.0,  4000.0,   5000.0],
+                [8.0,    9.0,    10.0,    11.0,     12.0],
+                [13.0,   14.0,   15.0,    16.0,     17.0],
             ]
         ]
     )
     times = ["2020-01"]
     x = np.array([0, 1, 2, 3, 4])
     y = np.array([0, 1, 2, 3, 4])
-    da = xr.DataArray(data, coords=[("decade_month", times), ("y", y), ("x", x)])
-    return da
+    dims = ["decade_month", "y", "x"]
+    ds = xr.Dataset(
+        data_vars={"value_mean": (dims, data),
+                    "value_median": (dims, data),
+                    "value_stddev": (dims, data),
+                    "value_min": (dims, data),
+                    "value_max": (dims, data),
+                    "value_q1": (dims, data),
+                    "value_q3": (dims, data)},
+        coords={"decade_month": times, "y": y, "x": x}
+    )
+    return ds
 
 
 @pytest.fixture
@@ -73,39 +82,47 @@ def sample_infra_data():
     return gdf
 
 
-
 def test_zonal_aggregation_max(sample_climate_data, sample_infra_data):
 
     expected_df = pd.DataFrame(
         data={
             "osm_id": [1, 2, 3, 4],
-            VALUE_COLUMN: [200., 17., 4000., 3000.],
+            "value_mean": [200.0, 17.0, 4000.0, 805.0],
+            "value_median": [200.0, 17.0, 4000.0, 805.0],
+            "value_stddev": [200.0, 17.0, 4000.0, 805.0],
+            "value_min": [200.0, 17.0, 4000.0, 10.0],
+            "value_max": [200.0, 17.0, 4000.0, 3000.0],
+            "value_q1": [200.0, 17.0, 4000.0, 10.0],
+            "value_q3": [200.0, 17.0, 4000.0, 3000.0],
             "decade": [2020, 2020, 2020, 2020],
             "month": [1, 1, 1, 1],
         }
     )
-
 
     # Call the function
     df = zonal_aggregation(
         climate=sample_climate_data,
         infra=sample_infra_data,
         zonal_agg_method="max",
-        climatology_mean_method="decade_month",
         x_dim="x",
         y_dim="y",
-        crs="4326"
     )
 
-    
     assert_frame_equal(df.sort_values(by="osm_id").reset_index(drop=True), expected_df)
+
 
 def test_zonal_aggregation_mean(sample_climate_data, sample_infra_data):
 
     expected_df = pd.DataFrame(
         data={
             "osm_id": [1, 2, 3, 4],
-            VALUE_COLUMN: [200., 17., 1755.25, 805.],
+            "value_mean": [200.0, 17.0, 1755.25, 805.0],
+            "value_median": [200.0, 17.0, 1755.25, 805.0],
+            "value_stddev": [200.0, 17.0, 1755.25, 805.0],
+            "value_min": [200.0, 17.0, 1755.25, 10.0],
+            "value_max": [200.0, 17.0, 1755.25, 3000.0],
+            "value_q1": [200.0, 17.0, 1755.25, 10.0],
+            "value_q3": [200.0, 17.0, 1755.25, 3000.0],
             "decade": [2020, 2020, 2020, 2020],
             "month": [1, 1, 1, 1],
         }
@@ -116,10 +133,8 @@ def test_zonal_aggregation_mean(sample_climate_data, sample_infra_data):
         climate=sample_climate_data,
         infra=sample_infra_data,
         zonal_agg_method="mean",
-        climatology_mean_method="decade_month",
         x_dim="x",
         y_dim="y",
-        crs="4326"
     )
 
     # Check that the DataFrame contains expected data

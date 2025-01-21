@@ -1,4 +1,4 @@
-FROM rustprooflabs/pgosm-flex:1.0.0
+FROM rustprooflabs/pgosm-flex:1.1.0
 
 COPY ./custom-layerset /custom-layerset
 

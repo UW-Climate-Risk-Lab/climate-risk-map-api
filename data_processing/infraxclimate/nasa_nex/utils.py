@@ -10,6 +10,8 @@ import psycopg2 as pg
 import psycopg2.sql as sql
 import xarray as xr
 
+import constants
+
 def str_to_bool(s):
     return s.lower() in ['true', '1', 't', 'y', 'yes']
 
@@ -38,10 +40,10 @@ def get_state_bbox(state: str) -> Dict[str, float]:
     # Source: https://observablehq.com/@rdmurphy/u-s-state-bounding-boxes
     data = {
         "washington": {
-            "min_lon": -124.73364306703067,
-            "min_lat": 45.54383071539715,
-            "max_lon": -116.9161607504075,
-            "max_lat": 49.00240502974029,
+            "min_lon": -125.1,
+            "min_lat": 45.5,
+            "max_lon": -116.9,
+            "max_lat": 49.1,
         }
     }
     try:
@@ -169,7 +171,7 @@ def convert_to_serializable(value: Any) -> Any:
 
 
 def create_metadata(
-    ds: xr.Dataset, derived_metadata_key: str, climate_variable: str
+    ds: xr.Dataset
 ) -> Dict:
     """Creates json metadata and summary metrics for
     frontend
@@ -184,12 +186,12 @@ def create_metadata(
     """
     metadata = {key: convert_to_serializable(value) for key, value in ds.attrs.items()}
 
-    metadata[climate_variable] = {
+    metadata = {
         key: convert_to_serializable(value)
-        for key, value in ds[climate_variable].attrs.items()
+        for key, value in ds.attrs.items()
     }
 
     # Add any additional useful metadeta to the key UW_CRL_DERIVED
-    metadata[derived_metadata_key] = {}
+    metadata[constants.METADATA_KEY] = {}
 
     return metadata

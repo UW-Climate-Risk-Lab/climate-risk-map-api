@@ -7,7 +7,7 @@ The ETL service is run via a Docker Container. The below setup is meant to be us
 
 ## Set Up
 
- 0. Set up a Postgres database for the ETL pipeline. See `backend/physical-asset/database/pg_osm_flex_washington/migrations/20240722214959_database_setup.sql` for a sample setup script.
+ 0. Set up a Postgres database for the ETL pipeline. See `database/v1/pgosm_flex/washington/init_db.sql` for a sample setup script.
 
  1. Ensure that you have a .env file that specifies your postgres database connection details. A sample env file is provided in this directory as `env.sample`. Ram should be set lower than the total RAM on the machine to avoid overages. You can use this command to set all environment variables in your .env files.
 
