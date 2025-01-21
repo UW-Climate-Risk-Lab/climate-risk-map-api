@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-LOAD_GEOTIFFS = False # For debugging, loading geotiffs takes time and 
+LOAD_GEOTIFFS = True # For debugging, loading geotiffs takes time and 
 
 PG_DBNAME = os.environ["PG_DBNAME"]
 PG_USER = os.environ["PG_USER"]
@@ -25,28 +25,8 @@ PG_HOST = os.environ["PG_HOST"]
 PG_PORT = os.environ["PG_PORT"]
 
 
-def setup_args():
-    parser = argparse.ArgumentParser(description="Process climate data for a given SSP")
-
-    parser.add_argument("--ssp", required=True, help="SSP Scenario")
-    parser.add_argument("--s3-bucket", required=True, help="S3 bucket name")
-    parser.add_argument("--s3-prefix", required=True, help="S3 base prefix for climate data")
-    parser.add_argument("--s3-prefix-geotiff", required=True, help="S3 base prefix for outputting geotiffs")
-    parser.add_argument(
-        "--climate-variable", required=True, help="Climate variable to process"
-    )
-    parser.add_argument("--crs", required=True, help="Coordinate reference system")
-    parser.add_argument(
-        "--zonal-agg-method", required=True, help="Zonal aggregation method"
-    )
-    parser.add_argument("--state-bbox", help="State bounding box")
-    parser.add_argument("--osm-category", required=True, help="OSM category")
-    parser.add_argument("--osm-type", required=True, help="OSM type")
-    return parser.parse_args()
-
-
 def main(
-    ssp: int,
+    ssp: str,
     s3_bucket: str,
     s3_prefix: str,
     s3_prefix_geotiff: str,
@@ -137,16 +117,5 @@ def main(
 
 
 if __name__ == "__main__":
-    args = setup_args()
-    main(
-        ssp=args.ssp,
-        s3_bucket=args.s3_bucket,
-        s3_prefix=args.s3_prefix,
-        s3_prefix_geotiff=args.s3_prefix_geotiff,
-        climate_variable=args.climate_variable,
-        crs=args.crs,
-        zonal_agg_method=args.zonal_agg_method,
-        state_bbox=args.state_bbox,
-        osm_category=args.osm_category,
-        osm_type=args.osm_type,
-    )
+    # Remove this since run.py is now the entry point
+    pass

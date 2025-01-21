@@ -19,16 +19,14 @@ FUTURE_YEARS = set(range(2015, 2101))  # 2015-2100
 
 
 def validate_model_ssp(fs: s3fs.S3FileSystem, model_path: str, ssp: str) -> bool:
-    """Check if model has required SSP. SSP may equal 'historical'"""
-
-    if fs.exists(f"{model_path}/ssp{ssp}"):
-        return True
-
-    # Catches 'historical'
-    if fs.exists(f"{model_path}/{ssp}"):
-        return True
+    """Check if model has required SSP"""
     
-    return False
+    # Handle historical case
+    if ssp == '-999':
+        return fs.exists(f"{model_path}/historical")
+    
+    # Handle regular SSP cases
+    return fs.exists(f"{model_path}/ssp{ssp}")
 
 
 def validate_model_years(fs: s3fs.S3FileSystem, zarr_stores: List[str]) -> bool:
@@ -139,8 +137,8 @@ def load_data(
     pattern = f"s3://{s3_bucket}/{s3_prefix}/*"
     model_paths = fs.glob(pattern)
 
-    # TODO: REMOVE LIST SLICE FOR FULL RUN!!!
-    for model_path in model_paths[:2]:
+
+    for model_path in model_paths:
         model_name = model_path.rstrip("/").split("/")[-1]
         logger.info(f"Validating model: {model_name}")
 
@@ -150,7 +148,11 @@ def load_data(
             continue
 
         # Get all zarr stores for this model and SSP
-        model_pattern = f"{model_path}/ssp{ssp}/*/{climate_variable}_day_*.zarr"
+        if ssp == '-999':
+            model_pattern = f"{model_path}/historical/*/{climate_variable}_day_*.zarr"
+        else:
+            model_pattern = f"{model_path}/ssp{ssp}/*/{climate_variable}_day_*.zarr"
+
         zarr_stores = fs.glob(model_pattern)
 
         # Check if model has all required years
