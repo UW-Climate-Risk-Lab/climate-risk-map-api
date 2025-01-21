@@ -21,10 +21,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Stored in SSM for security
-PG_DBNAME = utils.get_parameter(os.environ["PGDBNAME"])
-PG_USER = utils.get_parameter(os.environ["PGUSER"])
-PG_PASSWORD = utils.get_parameter(os.environ["PGPASSWORD"])
-PG_HOST = utils.get_parameter(os.environ["PGHOST"])
+if os.getenv("LOCAL_TEST"):
+    PG_DBNAME = os.environ["PGDBNAME"]
+    PG_USER = os.environ["PGUSER"]
+    PG_PASSWORD = os.environ["PGPASSWORD"]
+    PG_HOST = os.environ["PGHOST"]
+else:
+    PG_DBNAME = utils.get_parameter(os.environ["PGDBNAME"])
+    PG_USER = utils.get_parameter(os.environ["PGUSER"])
+    PG_PASSWORD = utils.get_parameter(os.environ["PGPASSWORD"])
+    PG_HOST = utils.get_parameter(os.environ["PGHOST"])
 
 def get_database_conn() -> connection:
     """Gets Postgres database connection

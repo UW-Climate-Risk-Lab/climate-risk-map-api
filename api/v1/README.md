@@ -68,7 +68,7 @@ A repository for a data API that allows access to physical asset and climate ris
 2. **Run the FastAPI application**
 
    ```bash
-   uvicorn app.main:app --reload
+   uvicorn app.main:app --reload --env-file app/.env
    ```
 
    The API will be accessible at `http://127.0.0.1:8000`.
