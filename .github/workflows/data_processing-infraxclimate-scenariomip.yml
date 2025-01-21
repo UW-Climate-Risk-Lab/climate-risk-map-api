@@ -35,7 +35,7 @@ jobs:
       - name: Run Unit Tests
         run: |
           cd data_processing/infraxclimate/nasa_nex
-          PYTHONPATH=$PYTHONPATH:.
+          export PYTHONPATH=$PYTHONPATH:.
           poetry run pytest
 
   build:
