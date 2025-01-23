@@ -148,25 +148,25 @@ TEST_BBOX = {
                             SQL(", "),
                             Composed([Identifier("city"), SQL(".name AS city")]),
                             SQL(", "),
-                            Composed([Identifier("climate_data"), SQL(".ssp")]),
+                            Composed([Identifier("climate_table"), SQL(".ssp")]),
                             SQL(", "),
-                            Composed([Identifier("climate_data"), SQL(".month")]),
+                            Composed([Identifier("climate_table"), SQL(".month")]),
                             SQL(", "),
-                            Composed([Identifier("climate_data"), SQL(".decade")]),
+                            Composed([Identifier("climate_table"), SQL(".decade")]),
                             SQL(", "),
-                            Composed(
-                                [
-                                    Identifier("climate_data"),
-                                    SQL(".variable AS climate_variable"),
-                                ]
-                            ),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_mean")]),
                             SQL(", "),
-                            Composed(
-                                [
-                                    Identifier("climate_data"),
-                                    SQL(".value AS climate_exposure"),
-                                ]
-                            ),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_median")]),
+                            SQL(", "),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_stddev")]),
+                            SQL(", "),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_min")]),
+                            SQL(", "),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_max")]),
+                            SQL(", "),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_q1")]),
+                            SQL(", "),
+                            Composed([Identifier("climate_table"), SQL(".ensemble_q3")]),
                         ]
                     ),
                 ]
@@ -329,7 +329,7 @@ def test_create_from_statement(input_params, expected_from_statement):
                 osm_types=["power"],
                 osm_subtypes=["line"],
                 epsg_code=4326,
-                climate_variable="burntFractionAll",
+                climate_variable="fwi",
                 climate_decade=[2060, 2070],
                 climate_month=[8, 9],
                 climate_ssp=126,
@@ -412,39 +412,25 @@ def test_create_from_statement(input_params, expected_from_statement):
                     SQL(" "),
                     Composed(
                         [
-                            SQL("LEFT JOIN ("),
+                            SQL("INNER JOIN ("),
                             SQL(
-                                "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value "
+                                "SELECT s.osm_id, s.ssp, s.month, s.decade, "
+                                "s.value_mean AS ensemble_mean, s.value_median AS ensemble_median, "
+                                "s.value_stddev AS ensemble_stddev, s.value_min AS ensemble_min, "
+                                "s.value_max AS ensemble_max, s.value_q1 AS ensemble_q1, "
+                                "s.value_q3 AS ensemble_q3 "
                             ),
                             Composed(
                                 [
                                     SQL("FROM "),
                                     Identifier("climate"),
                                     SQL("."),
-                                    Identifier("scenariomip"),
+                                    Identifier("nasa_nex_fwi"),
                                     SQL(" s "),
                                 ]
                             ),
-                            Composed(
-                                [
-                                    SQL("LEFT JOIN "),
-                                    Identifier("climate"),
-                                    SQL("."),
-                                    Identifier("scenariomip_variables"),
-                                    SQL(" v "),
-                                ]
-                            ),
-                            SQL("ON s.variable_id = v.id "),
-                            SQL(
-                                "WHERE v.ssp = %s AND v.variable = %s AND s.decade IN %s AND s.month IN %s"
-                            ),
-                            Composed(
-                                [
-                                    SQL(") AS "),
-                                    Identifier("climate_data"),
-                                    SQL(" "),
-                                ]
-                            ),
+                            SQL("WHERE s.ssp = %s AND s.decade IN %s AND s.month IN %s"),
+                            Composed([SQL(") AS "), Identifier("climate_table"), SQL(" ")]),
                             Composed(
                                 [
                                     SQL("ON "),
@@ -452,7 +438,7 @@ def test_create_from_statement(input_params, expected_from_statement):
                                     SQL("."),
                                     Identifier("infrastructure"),
                                     SQL(".osm_id = "),
-                                    Identifier("climate_data"),
+                                    Identifier("climate_table"),
                                     SQL(".osm_id"),
                                 ]
                             ),
@@ -460,7 +446,7 @@ def test_create_from_statement(input_params, expected_from_statement):
                     ),
                 ]
             ),
-            [6, 8, 126, "burntFractionAll", (2060, 2070), (8, 9)],
+            [6, 8, 126, (2060, 2070), (8, 9)],
         ),
         # Test case no climate
         (

@@ -27,12 +27,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@router.get("/data/{format}/{osm_category}/{osm_type}/{osm_subtype}/")
+@router.get("/data/{format}/{osm_category}/{osm_type}/")
 def get_data(
     format: str,  # TODO: configure to allow CSV or Geojson
     osm_category: str,
     osm_type: str,
-    osm_subtype: str,
+    osm_subtype: List[str] | None = Query(None),
     bbox: List[str] | None = Query(None),
     epsg_code: int = 4326,
     geom_type: str | None = None,
@@ -47,7 +47,8 @@ def get_data(
     # Convert to single element tuple after request since query builder can handle lists
     osm_types = (osm_type,)
     if osm_subtype:
-        osm_subtypes = (osm_subtype,)
+        osm_subtype = tuple(osm_subtype)
+
     if climate_month:
         climate_month = (climate_month,)
     if climate_decade:
@@ -86,7 +87,7 @@ def get_data(
         input_params = schemas.GetDataInputParameters(
             osm_category=osm_category,
             osm_types=osm_types,
-            osm_subtypes=osm_subtypes,
+            osm_subtypes=osm_subtype,
             bbox=bbox,
             epsg_code=epsg_code,
             geom_type=geom_type,
