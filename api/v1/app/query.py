@@ -121,15 +121,46 @@ class GetDataQueryBuilder:
                     climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
                     climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
                 )
+            
             )
             select_fields.append(
-                sql.SQL("{climate_table_alias}.variable AS climate_variable").format(
+                sql.SQL("{climate_table_alias}.ensemble_mean").format(
                     climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
                     climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
                 )
             )
             select_fields.append(
-                sql.SQL("{climate_table_alias}.value AS climate_exposure").format(
+                sql.SQL("{climate_table_alias}.ensemble_median").format(
+                    climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
+                    climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
+                )
+            )
+            select_fields.append(
+                sql.SQL("{climate_table_alias}.ensemble_stddev").format(
+                    climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
+                    climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
+                )
+            )
+            select_fields.append(
+                sql.SQL("{climate_table_alias}.ensemble_min").format(
+                    climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
+                    climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
+                )
+            )
+            select_fields.append(
+                sql.SQL("{climate_table_alias}.ensemble_max").format(
+                    climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
+                    climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
+                )
+            )
+            select_fields.append(
+                sql.SQL("{climate_table_alias}.ensemble_q1").format(
+                    climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
+                    climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
+                )
+            )
+            select_fields.append(
+                sql.SQL("{climate_table_alias}.ensemble_q3").format(
                     climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
                     climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS),
                 )
@@ -193,28 +224,22 @@ class GetDataQueryBuilder:
             and self.input_params.climate_month
             and self.input_params.climate_decade
         ):
+            # assuming NASA NEX climate data
+            climate_table = (
+                config.CLIMATE_NASA_NEX_TABLE_PREFIX
+                + f"{self.input_params.climate_variable}"
+            )
             climate_join = sql.Composed(
                 [
-                    sql.SQL("LEFT JOIN ("),
+                    sql.SQL("INNER JOIN ("),
                     sql.SQL(
-                        "SELECT s.osm_id, v.ssp, v.variable, s.month, s.decade, s.value "
+                        "SELECT s.osm_id, s.ssp, s.month, s.decade, s.value_mean AS ensemble_mean, s.value_median AS ensemble_median, s.value_stddev AS ensemble_stddev, s.value_min AS ensemble_min, s.value_max AS ensemble_max, s.value_q1 AS ensemble_q1, s.value_q3 AS ensemble_q3 "
                     ),
-                    sql.SQL("FROM {climate_schema}.{scenariomip} s ").format(
+                    sql.SQL("FROM {climate_schema}.{climate_table} s ").format(
                         climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
-                        scenariomip=sql.Identifier(config.SCENARIOMIP_TABLE),
+                        climate_table=sql.Identifier(climate_table),
                     ),
-                    sql.SQL(
-                        "LEFT JOIN {climate_schema}.{scenariomip_variable} v "
-                    ).format(
-                        climate_schema=sql.Identifier(config.CLIMATE_SCHEMA_NAME),
-                        scenariomip_variable=sql.Identifier(
-                            config.SCENARIOMIP_VARIABLE_TABLE
-                        ),
-                    ),
-                    sql.SQL("ON s.variable_id = v.id "),
-                    sql.SQL(
-                        "WHERE v.ssp = %s AND v.variable = %s AND s.decade IN %s AND s.month IN %s"
-                    ),
+                    sql.SQL("WHERE s.ssp = %s AND s.decade IN %s AND s.month IN %s"),
                     sql.SQL(") AS {climate_table_alias} ").format(
                         climate_table_alias=sql.Identifier(config.CLIMATE_TABLE_ALIAS)
                     ),
@@ -229,7 +254,6 @@ class GetDataQueryBuilder:
             )
             params += [
                 self.input_params.climate_ssp,
-                self.input_params.climate_variable,
                 tuple(set(self.input_params.climate_decade)),
                 tuple(set(self.input_params.climate_month)),
             ]
